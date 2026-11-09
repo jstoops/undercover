@@ -4,10 +4,17 @@ import { MemoryRouter } from "react-router";
 import { vi } from "vitest";
 import { AppRoutes } from "./App";
 
-/** Answer fetch from a table of "METHOD /path" to JSON; anything else is a 404. */
-export function stubApi(routes: Record<string, unknown>) {
+/**
+ * Answer fetch from a table of "METHOD /path" to JSON; anything else is a 404.
+ * onRequest runs first, so a test can change the table as requests arrive.
+ */
+export function stubApi(
+  routes: Record<string, unknown>,
+  onRequest: (key: string) => void = () => undefined,
+) {
   const fetchMock = vi.fn((path: string, init?: RequestInit) => {
     const key = `${init?.method ?? "GET"} ${path}`;
+    onRequest(key);
     return Promise.resolve(
       key in routes
         ? Response.json(routes[key])

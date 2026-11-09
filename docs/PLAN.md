@@ -195,12 +195,12 @@ Following the spec's "Not for now" and `AGENTS.md`'s rule against building ahead
 
 **Success criteria**
 
-- [ ] vitest tests cover each section, the empty states (no decision yet, no steps yet), the step labels and the sign-off request, against a stubbed `fetch`
-- [ ] Playwright: the CLM-1002 page shows the story, 6 items, the amount claimed of $1,150.00, 3 documents, the policy and the customer's history
-- [ ] Playwright: with the CLM-1005 page open, the test starts the claim and adds steps through the API, the way the agent does. The steps appear in order without a reload, and after the test records a decision, the decision and its reason appear
-- [ ] Playwright: a claim approved at $1,500.00 through the API, whose payment is then refused with a 403, shows "Waiting for sign-off" and that the payment is held. Choosing Dana Whitfield and pressing "Sign off and pay" changes it to Decided, paid $1,500.00 and signed off by Dana Whitfield, and the queue shows it as Decided
-- [ ] Checked in the browser with the Playwright MCP server, light and dark mode: a decided claim, a claim waiting for sign-off and a claim with steps all read clearly, with no console errors
-- [ ] `npm run check:ts` passes, with coverage of at least 80%
+- [x] vitest tests cover each section, the empty states (no decision yet, no steps yet), the step labels and the sign-off request, against a stubbed `fetch`
+- [x] Playwright: the CLM-1002 page shows the story, 6 items, the amount claimed of $1,150.00, 3 documents, the policy and the customer's history
+- [x] Playwright: with the CLM-1005 page open, the test starts the claim and adds steps through the API, the way the agent does. The steps appear in order without a reload, and after the test records a decision, the decision and its reason appear
+- [x] Playwright: a claim approved at $1,500.00 through the API, whose payment is then refused with a 403, shows "Waiting for sign-off" and that the payment is held. Choosing Dana Whitfield and pressing "Sign off and pay" changes it to Decided, paid $1,500.00 and signed off by Dana Whitfield, and the queue shows it as Decided
+- [x] Checked in the browser with the Playwright MCP server, light and dark mode: a decided claim, a claim waiting for sign-off and a claim with steps all read clearly, with no console errors
+- [x] `npm run check:ts` passes, with coverage of at least 80%
 
 ## Phase 6: The pilot, end to end
 
