@@ -67,4 +67,12 @@ Playwright tests of the queue, the instructions, a claim in full, the agent's st
 
 ## What we've seen from the agent
 
-On CLM-1001 the agent approves $420.00 under Section 3, Trip Delay, as the wording gives. On CLM-1003 it approved the full $3,800.00 hospital bill, saying no deductible applies to Emergency Medical. Section 1 of the wording says the $50 Premium deductible does apply, so by the wording the payout is $3,750.00. The payment was held for sign-off, as it should be. The pilot doesn't yet measure the agent's accuracy against the handlers' decisions.
+- On CLM-1001 the agent approves $420.00 under Section 3, Trip Delay, as the wording gives.
+- On CLM-1003 it once approved the full $3,800.00 hospital bill, saying no deductible applies to Emergency Medical. On another run it took off the $50 Premium deductible and approved $3,750.00, as section 1 of the wording says. The same claim can come out differently from one run to the next.
+- A run of the whole queue gave 16 approvals (3 of them held for sign-off), 5 declines and 4 referrals, so 21 of 25 went straight through.
+- On CLM-1013 the agent recorded an approval of $64.00 whose own reason said the 7-hour delay fell short of the Economy plan's 12-hour waiting period. It then tried to record a decline, which the backend refused because a decision is final, and its final reply said the claim was declined. The record (approve $64.00, unpaid) is what counts. `uv run -m agent` prints the outcome from the record, not from the reply, and that is how this was caught.
+- The pilot doesn't yet measure the agent's accuracy against the handlers' decisions.
+
+## To do
+
+- Change the agent's instructions (`backend/instructions.md`) to tell it to work the decision out fully, including the payout, before it calls `decide_claim`, because a recorded decision can't be changed. This is the fix for what happened on CLM-1013.
