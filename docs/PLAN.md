@@ -119,17 +119,17 @@ Following the spec's "Not for now" and `AGENTS.md`'s rule against building ahead
 
 **Success criteria** (each checked with API calls against a freshly seeded backend, and covered by pytest)
 
-- [ ] `GET /api/instructions` returns the instructions, which mention the $1,000 sign-off rule
-- [ ] CLM-1001: `start` gives `in_progress`. `add_step` and then `list_steps` returns that step. Deciding `approve` with 420.00 gives `decided`. Paying 420.00 records a payment with a timestamp. Paying again gives 409
-- [ ] CLM-1003: deciding `approve` with 1500.00 gives `awaiting_sign_off`. Paying 1500.00 gives 403 with a message about sign-off. Paying 900.00 is also refused. `get_claim` shows no payment
-- [ ] CLM-1003: `sign_off_claim` with HND-01 gives `decided`, with a sign-off by HND-01 and a payment of 1500.00. Paying again afterwards gives 409
-- [ ] An approval of exactly 1000.00 goes straight to `decided` and pays without sign-off
-- [ ] A decline and a referral each give `decided` with payout 0, and paying either gives 409
-- [ ] State checks: deciding a `waiting` claim gives 409, starting a `decided` claim gives 409, signing off a claim that isn't awaiting sign-off gives 409, and signing off with HND-99 gives 404
-- [ ] Input checks: approving with payout 0, declining with a payout above 0, and the decision `maybe` each give 422
-- [ ] `GET /api/claims` shows each claim's new status, decision and payout
-- [ ] The OpenAPI test still passes for the new operations
-- [ ] `npm run check:python` passes, with coverage of at least 80%
+- [x] `GET /api/instructions` returns the instructions, which mention the $1,000 sign-off rule
+- [x] CLM-1001: `start` gives `in_progress`. `add_step` and then `list_steps` returns that step. Deciding `approve` with 420.00 gives `decided`. Paying 420.00 records a payment with a timestamp. Paying again gives 409
+- [x] CLM-1003: deciding `approve` with 1500.00 gives `awaiting_sign_off`. Paying 1500.00 gives 403 with a message about sign-off. Paying 900.00 is also refused. `get_claim` shows no payment
+- [x] CLM-1003: `sign_off_claim` with HND-01 gives `decided`, with a sign-off by HND-01 and a payment of 1500.00. Paying again afterwards gives 409
+- [x] An approval of exactly 1000.00 goes straight to `decided` and pays without sign-off
+- [x] A decline and a referral each give `decided` with payout 0, and paying either gives 409
+- [x] State checks: deciding a `waiting` claim gives 409, starting a `decided` claim gives 409, signing off a claim that isn't awaiting sign-off gives 409, and signing off with HND-99 gives 404
+- [x] Input checks: approving with payout 0, declining with a payout above 0, and the decision `maybe` each give 422
+- [x] `GET /api/claims` shows each claim's new status, decision and payout
+- [x] The OpenAPI test still passes for the new operations
+- [x] `npm run check:python` passes, with coverage of at least 80%
 
 ## Phase 3: The UnderCover Agent
 

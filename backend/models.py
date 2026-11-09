@@ -1,11 +1,52 @@
 """The shapes of the API's requests and responses."""
 
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 Status = Literal["waiting", "in_progress", "awaiting_sign_off", "decided"]
 DecisionKind = Literal["approve", "decline", "refer"]
+StepKind = Literal["tool_call", "tool_result", "reply"]
+
+
+class DecisionInput(BaseModel):
+    decision: DecisionKind
+    payout: float = Field(ge=0)
+    reason: str = Field(min_length=1)
+    policy_section: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def payout_fits_decision(self) -> Self:
+        if self.decision == "approve" and self.payout <= 0:
+            raise ValueError("An approval needs a payout above zero")
+        if self.decision != "approve" and self.payout != 0:
+            raise ValueError("A decline or a referral has a payout of zero")
+        return self
+
+
+class PaymentInput(BaseModel):
+    amount: float = Field(gt=0)
+
+
+class SignOffInput(BaseModel):
+    handler_id: str
+
+
+class StepInput(BaseModel):
+    thread_id: str
+    kind: StepKind
+    name: str
+    content: str
+
+
+class Step(StepInput):
+    step_id: int
+    claim_id: str
+    created_at: str
+
+
+class Instructions(BaseModel):
+    instructions: str
 
 
 class Item(BaseModel):
