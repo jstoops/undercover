@@ -143,16 +143,16 @@ Following the spec's "Not for now" and `AGENTS.md`'s rule against building ahead
 
 **Success criteria**
 
-- [ ] The pytest tests with a stub model (none call a real model) show that:
+- [x] The pytest tests with a stub model (none call a real model) show that:
   - for an approval up to $1,000, the claim ends `decided` and paid, and the steps are recorded in order: tool calls, tool results and the reply
   - for an approval over $1,000, the payment is refused, the refusal reaches the model as a tool result, the claim ends `awaiting_sign_off` and no payment is recorded
   - for a decline, the claim ends `decided` with no payment
   - the system prompt holds the instructions and the policy wording, both fetched through the API
   - `uv run -m agent` with no argument picks only the `waiting` claims, and with a claim id runs just that one
-- [ ] The agent's code reaches the backend only over HTTP. It imports nothing from `backend/` and reads no files from `data/`
-- [ ] With `npm run dev` running, `uv run -m agent CLM-1001` (one real model call chain, about a cent) ends with CLM-1001 `decided`. `GET /api/claims/CLM-1001/steps` lists calls to `get_claim`, `get_policy`, `get_customer` and `decide_claim` with their results, and the decision has a two-or-three-sentence reason and a policy section. By the wording, this claim should be an approval of $420.00 under Section 3, Trip Delay
-- [ ] `uv run -m backend.seed` resets CLM-1001 to `waiting`
-- [ ] `npm run check:python` passes, with coverage of at least 80%
+- [x] The agent's code reaches the backend only over HTTP. It imports nothing from `backend/` and reads no files from `data/`
+- [x] With `npm run dev` running, `uv run -m agent CLM-1001` (one real model call chain, about a cent) ends with CLM-1001 `decided`. `GET /api/claims/CLM-1001/steps` lists calls to `get_claim`, `get_policy`, `get_customer` and `decide_claim` with their results, and the decision has a two-or-three-sentence reason and a policy section. By the wording, this claim should be an approval of $420.00 under Section 3, Trip Delay
+- [x] `uv run -m backend.seed` resets CLM-1001 to `waiting`
+- [x] `npm run check:python` passes, with coverage of at least 80%
 
 ## Phase 4: The dashboard's look, the queue and the instructions
 
