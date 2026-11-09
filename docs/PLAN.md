@@ -173,13 +173,13 @@ Following the spec's "Not for now" and `AGENTS.md`'s rule against building ahead
 
 **Success criteria**
 
-- [ ] vitest tests cover the queue's rows, counts and filter, the status labels, money and date formatting and the instructions page, all against a stubbed `fetch`
-- [ ] Playwright: the queue shows 25 claims and "Waiting 25". Clicking CLM-1001 opens `/claims/CLM-1001`. The instructions page shows the instructions with no editable field
-- [ ] Playwright: after a claim is started through the API, the queue shows it as In progress without a reload
-- [ ] With `npm run dev` running, `npm run e2e` passes and leaves the dev queue untouched (still 25 waiting)
-- [ ] Checked in the browser with the Playwright MCP server at `localhost:5173`, light and dark mode: the fonts are Saira Extra Condensed, Courier Prime and Roboto (by computed style), the side nav is Smoke Tree, the panels are rounded with no outline, the status colors match the brand, and there are no console errors
-- [ ] At 390 pixels wide the side nav becomes a top bar and the table scrolls inside its panel, not the whole page
-- [ ] `npm run check:ts` passes, with coverage of at least 80%
+- [x] vitest tests cover the queue's rows, counts and filter, the status labels, money and date formatting and the instructions page, all against a stubbed `fetch`
+- [x] Playwright: the queue shows 25 claims and "Waiting 25". Clicking CLM-1001 opens `/claims/CLM-1001`. The instructions page shows the instructions with no editable field
+- [x] Playwright: after a claim is started through the API, the queue shows it as In progress without a reload
+- [x] With `npm run dev` running, `npm run e2e` passes and leaves the dev queue untouched (still 25 waiting)
+- [x] Checked in the browser with the Playwright MCP server at `localhost:5173`, light and dark mode: the fonts are Saira Extra Condensed, Courier Prime and Roboto (by computed style), the side nav is Smoke Tree, the panels are rounded with no outline, the status colors match the brand, and there are no console errors
+- [x] At 390 pixels wide the side nav becomes a top bar and the table scrolls inside its panel, not the whole page
+- [x] `npm run check:ts` passes, with coverage of at least 80%
 
 ## Phase 5: The claim page, the agent's steps and sign-off
 

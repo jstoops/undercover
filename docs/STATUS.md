@@ -1,6 +1,6 @@
 # Status
 
-The pilot is being built from `docs/PLAN.md`. Phases 1 to 3 of 6 are done.
+The pilot is being built from `docs/PLAN.md`. Phases 1 to 4 of 6 are done.
 
 ## What's built
 
@@ -9,8 +9,9 @@ The pilot is being built from `docs/PLAN.md`. Phases 1 to 3 of 6 are done.
   - The workflow: `start_claim`, `add_step`, `list_steps`, `decide_claim`, `pay_claim` and `sign_off_claim`.
   - The agent's instructions are in `backend/instructions.md`.
 - `agent/`: the UnderCover Agent, LangChain's `create_agent` on OpenRouter (`openai/gpt-6-luna` at low reasoning effort, or `MODEL_NAME`). Its tools are `get_claim`, `get_policy`, `get_customer`, `decide_claim` and `pay_claim`, and each calls the backend's API. `run(claim_id, thread_id)` starts the claim, builds the system prompt from the instructions and the policy wording (both fetched through the API), and posts each tool call, tool result and reply to the backend as a step while it works.
-- `dashboard/`: still the one page that shows whether the backend is up.
-- `e2e/`: one test of that page.
+- `dashboard/`: React, Vite and React Router in UnderCover's brand (`dashboard/src/styles.css`), following the system's light or dark mode. The queue page (`/`) shows a count for each status, which you can click to filter, and a table of claims, refreshed every 2 seconds. The instructions page (`/instructions`) shows the agent's instructions, read only. The claim page (`/claims/:claimId`) shows only the claim's id so far. `api.ts` tags each API path with its response type.
+- `e2e/`: Playwright tests of the queue and the instructions. `playwright.config.ts` starts its own backend on port 8001, with a freshly seeded database in the system temp folder, and its own dashboard on port 5174, so the tests never touch the queue you use in `npm run dev`.
+- `.prettierrc.json` pins Prettier to its defaults, so a Prettier config in a parent folder can't change the repo's formatting.
 
 The seed loads the 25 claims in the queue, the policies, the customers (name, customer-since date and earlier claims only) and the handlers. It never reads `data/evals/` or `data/security/`.
 
