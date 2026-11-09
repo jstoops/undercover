@@ -211,10 +211,10 @@ Following the spec's "Not for now" and `AGENTS.md`'s rule against building ahead
 
 **Success criteria**
 
-- [ ] With `npm run dev` running and the CLM-1001 page open in the Playwright MCP browser, `uv run -m agent CLM-1001` shows the status go from In progress to Decided. The steps appear while the agent works, and the decision, reason and policy section appear at the end
-- [ ] `uv run -m agent CLM-1003` (a $3,800.00 hospital bill on a Premium policy) runs. If the agent approves it, as the wording suggests, its payment is refused, the claim shows Waiting for sign-off in the queue and on its page, and signing off in the browser pays it. If the agent decides otherwise, the decision and reason are shown, and the block was already proven in Phases 2, 3 and 5
-- [ ] `uv run -m backend.seed` resets the queue to 25 waiting claims
-- [ ] `docs/STATUS.md` describes the pilot and how to run it
-- [ ] `npm run check` passes in full: ruff, pyright, pytest with at least 80% coverage, ESLint, Prettier, tsc, vitest with at least 80% coverage, and Playwright
+- [x] With `npm run dev` running and the CLM-1001 page open in the Playwright MCP browser, `uv run -m agent CLM-1001` shows the status go from In progress to Decided. The steps appear while the agent works, and the decision, reason and policy section appear at the end
+- [x] `uv run -m agent CLM-1003` (a $3,800.00 hospital bill on a Premium policy) runs. If the agent approves it, as the wording suggests, its payment is refused, the claim shows Waiting for sign-off in the queue and on its page, and signing off in the browser pays it. If the agent decides otherwise, the decision and reason are shown, and the block was already proven in Phases 2, 3 and 5
+- [x] `uv run -m backend.seed` resets the queue to 25 waiting claims
+- [x] `docs/STATUS.md` describes the pilot and how to run it
+- [x] `npm run check` passes in full: ruff, pyright, pytest with at least 80% coverage, ESLint, Prettier, tsc, vitest with at least 80% coverage, and Playwright
 
 Running the whole queue with `uv run -m agent` is left to you, since it makes 25 claims' worth of model calls on your key. Reseed afterwards to start again.
