@@ -41,6 +41,9 @@ def test_get_instructions(client):
     instructions = client.get("/api/instructions").json()["instructions"]
     assert "UnderCover Agent" in instructions
     assert "$1,000" in instructions
+    assert "`list_sections`" in instructions
+    assert "`read_section`" in instructions
+    assert "before you record it" in instructions
 
 
 def test_start_claim(client):

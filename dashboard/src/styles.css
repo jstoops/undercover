@@ -638,6 +638,26 @@ tfoot th {
   margin: 0;
 }
 
+/* What the agent read. */
+
+.sections-read {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sections-read li {
+  padding: 0.3rem 0;
+}
+
+.sections-read li + li {
+  border-top: 1px solid var(--rule);
+}
+
+.sections-read .mono {
+  font-size: 1rem;
+}
+
 /* The agent's steps. */
 
 .steps {

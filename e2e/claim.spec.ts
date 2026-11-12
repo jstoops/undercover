@@ -76,6 +76,35 @@ test("the agent's steps appear as it works", async ({ page, request }) => {
   await expect(decision).toContainText("The receipts support the amount.");
 });
 
+test("the claim page shows what the agent read", async ({ page, request }) => {
+  await page.goto("/claims/CLM-1006");
+  const read = page.getByRole("region", { name: "What the agent read" });
+  await expect(read).toContainText("Nothing yet.");
+  const section = await request.get("/api/documents/claims-manual/sections/7");
+  for (const step of [
+    {
+      kind: "tool_call",
+      name: "read_section",
+      content: '{"document": "claims-manual", "number": 7}',
+    },
+    {
+      kind: "tool_result",
+      name: "read_section",
+      content: await section.text(),
+    },
+  ]) {
+    await request.post("/api/claims/CLM-1006/steps", {
+      data: { thread_id: "e2e", ...step },
+    });
+  }
+  await expect(read.getByRole("listitem")).toHaveText([
+    "Claims manual, 7. Interpretation notes",
+  ]);
+  await expect(
+    page.getByRole("list", { name: "Steps" }).getByRole("listitem").first(),
+  ).toContainText("Read the claims manual, section 7");
+});
+
 test("a handler signs off a held payment", async ({ page, request }) => {
   await request.post("/api/claims/CLM-1012/start");
   await decide(request, "CLM-1012", "approve", 1500);

@@ -155,5 +155,14 @@ class Handler(BaseModel):
     can_approve_over_limit: bool
 
 
-class PolicyWording(BaseModel):
-    policy_wording: str
+class SectionSummary(BaseModel):
+    number: int
+    title: str
+    topics: list[str]
+
+
+class Section(BaseModel):
+    document: str
+    number: int
+    title: str
+    text: str

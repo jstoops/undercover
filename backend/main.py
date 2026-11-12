@@ -11,6 +11,7 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI, HTTPException
 
 from backend.db import DATA, database_path, get_db
+from backend.documents import Document, contents, sections
 from backend.models import (
     Claim,
     ClaimSummary,
@@ -20,7 +21,8 @@ from backend.models import (
     Instructions,
     PaymentInput,
     Policy,
-    PolicyWording,
+    Section,
+    SectionSummary,
     SignOffInput,
     Status,
     Step,
@@ -28,7 +30,7 @@ from backend.models import (
 )
 from backend.seed import seed
 
-INSTRUCTIONS = Path(__file__).parent / "instructions.md"
+INSTRUCTIONS = Path(__file__).parent / "instructions"
 APPROVAL_LIMIT: float = json.loads((DATA / "company.json").read_text(encoding="utf-8"))[
     "payout_approval_limit"
 ]
@@ -166,11 +168,19 @@ def get_customer(customer_id: str, db: Db) -> Customer:
     )
 
 
-@app.get("/api/policy-wording", operation_id="get_policy_wording")
-def get_policy_wording() -> PolicyWording:
-    """Read the policy wording, the contract with the customer, as Markdown."""
-    text = (DATA / "policy_wording.md").read_text(encoding="utf-8")
-    return PolicyWording(policy_wording=text)
+@app.get("/api/documents/{document}/sections", operation_id="list_sections")
+def list_sections(document: Document) -> list[SectionSummary]:
+    """List the sections of the wording or the manual, with the topics of each."""
+    return contents(document)
+
+
+@app.get("/api/documents/{document}/sections/{number}", operation_id="read_section")
+def read_section(document: Document, number: int) -> Section:
+    """Read one section of the policy wording or the claims manual."""
+    for section in sections(document):
+        if section.number == number:
+            return section
+    raise HTTPException(404, f"Section {number} of the {document} not found")
 
 
 @app.get("/api/handlers", operation_id="list_handlers")
@@ -183,7 +193,8 @@ def list_handlers(db: Db) -> list[Handler]:
 @app.get("/api/instructions", operation_id="get_instructions")
 def get_instructions() -> Instructions:
     """Read the UnderCover Agent's instructions."""
-    return Instructions(instructions=INSTRUCTIONS.read_text(encoding="utf-8"))
+    text = (INSTRUCTIONS / "claim.md").read_text(encoding="utf-8")
+    return Instructions(instructions=text)
 
 
 @app.post("/api/claims/{claim_id}/start", operation_id="start_claim")

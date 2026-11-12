@@ -120,20 +120,20 @@ Following `AGENTS.md`'s rule against building ahead:
 
 **Success criteria**
 
-- [ ] `GET /api/documents/policy-wording/sections` returns 12 sections, from "1. Your plan" to "12. Definitions", and section 8's topics are Adventure Sports, Pre-Existing Condition Waiver and Electronics Plus
-- [ ] `GET /api/documents/claims-manual/sections` returns 14 sections, and section 7's topics include Unattended belongings, Wild animals and Pre-existing conditions
-- [ ] `GET /api/documents/claims-manual/sections/10` returns "Meals without receipts" with the $35 rule and nothing from section 11. Section 15 gives 404, and the document `evals` gives 422
-- [ ] `GET /api/policy-wording` gives 404
-- [ ] `GET /api/instructions` returns the new claim instructions, which name `list_sections` and `read_section`, say to work the decision out in full before `decide_claim`, and keep the $1,000 rule
-- [ ] pytest with a stub model: the claim agent's system prompt is the instructions alone, with no policy wording, and a `read_section` call and its result are recorded as steps on the claim
-- [ ] `main.model()` names `z-ai/glm-5.3-flash` by default and the model in `MODEL_NAME` when set. The request it would send for the default model carries low reasoning effort in a form OpenRouter accepts, and with `MODEL_NAME` set it carries none
-- [ ] The request `main.model()` would send skips Wafer by default (`provider.ignore` is `["wafer"]`). With `OPENROUTER_IGNORE=wafer,deepinfra` it skips both. With `OPENROUTER_IGNORE` set to nothing it has no provider setting. This holds with or without `MODEL_NAME`
-- [ ] vitest: the "What the agent read" list and the new step labels, from stubbed steps
-- [ ] Playwright: with the CLM-1006 page open, the test posts a `read_section` call and its result through the API. "Claims manual, 7. Interpretation notes" appears under "What the agent read" without a reload
+- [x] `GET /api/documents/policy-wording/sections` returns 12 sections, from "1. Your plan" to "12. Definitions", and section 8's topics are Adventure Sports, Pre-Existing Condition Waiver and Electronics Plus
+- [x] `GET /api/documents/claims-manual/sections` returns 14 sections, and section 7's topics include Unattended belongings, Wild animals and Pre-existing conditions
+- [x] `GET /api/documents/claims-manual/sections/10` returns "Meals without receipts" with the $35 rule and nothing from section 11. Section 15 gives 404, and the document `evals` gives 422
+- [x] `GET /api/policy-wording` gives 404
+- [x] `GET /api/instructions` returns the new claim instructions, which name `list_sections` and `read_section`, say to work the decision out in full before `decide_claim`, and keep the $1,000 rule
+- [x] pytest with a stub model: the claim agent's system prompt is the instructions alone, with no policy wording, and a `read_section` call and its result are recorded as steps on the claim
+- [x] `main.model()` names `z-ai/glm-5.3-flash` by default and the model in `MODEL_NAME` when set. The request it would send for the default model carries low reasoning effort in a form OpenRouter accepts, and with `MODEL_NAME` set it carries none
+- [x] The request `main.model()` would send skips Wafer by default (`provider.ignore` is `["wafer"]`). With `OPENROUTER_IGNORE=wafer,deepinfra` it skips both. With `OPENROUTER_IGNORE` set to nothing it has no provider setting. This holds with or without `MODEL_NAME`
+- [x] vitest: the "What the agent read" list and the new step labels, from stubbed steps
+- [x] Playwright: with the CLM-1006 page open, the test posts a `read_section` call and its result through the API. "Claims manual, 7. Interpretation notes" appears under "What the agent read" without a reload
 - [ ] After `uv run -m backend.seed`, `uv run -m agent CLM-1020` (sunglasses taken by a monkey) runs on the default model. Its steps show it read the contents and section 7 of the manual. Its reason treats the loss as caused by a wild animal, not as theft, as the manual's note says. OpenRouter's activity page shows the calls on GLM 5.3 Flash, and none of them served by Wafer
-- [ ] A search of `backend/` and `agent/` for `evals` finds only the test that the document `evals` is refused
-- [ ] `docs/SPEC.md` has the manual in its rules and no longer lists it under "Not for now"
-- [ ] `npm run check:python` and `npm run check:ts` pass, with coverage of at least 80%
+- [x] A search of `backend/` and `agent/` for `evals` finds only the test that the document `evals` is refused
+- [x] `docs/SPEC.md` has the manual in its rules and no longer lists it under "Not for now"
+- [x] `npm run check:python` and `npm run check:ts` pass, with coverage of at least 80%
 
 ## Phase 2: A fresh claim agent for each claim, with failures put right
 

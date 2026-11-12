@@ -164,6 +164,50 @@ export const steps: Step[] = [
   step(10, "reply", "", "Approved $1,500.00; waiting for sign-off."),
 ];
 
+const notes = JSON.stringify({
+  document: "claims-manual",
+  number: 7,
+  title: "Interpretation notes",
+  text: "**Wild animals.** A loss caused by a wild animal...",
+});
+
+export const lookupSteps: Step[] = [
+  step(1, "tool_call", "list_sections", '{"document": "claims-manual"}'),
+  step(2, "tool_result", "list_sections", "[]"),
+  step(
+    3,
+    "tool_call",
+    "read_section",
+    '{"document": "claims-manual", "number": 7}',
+  ),
+  step(4, "tool_result", "read_section", notes),
+  step(
+    5,
+    "tool_call",
+    "read_section",
+    '{"document": "policy-wording", "number": 5}',
+  ),
+  step(
+    6,
+    "tool_result",
+    "read_section",
+    JSON.stringify({
+      document: "policy-wording",
+      number: 5,
+      title: "Baggage and Personal Effects",
+      text: "We pay for loss, theft or accidental damage...",
+    }),
+  ),
+  step(
+    7,
+    "tool_call",
+    "read_section",
+    '{"document": "claims-manual", "number": 7}',
+  ),
+  step(8, "tool_result", "read_section", notes),
+  step(9, "tool_result", "read_section", '{"detail": "Section 15 not found"}'),
+];
+
 export const queue: ClaimSummary[] = [
   {
     claim_id: "CLM-1001",

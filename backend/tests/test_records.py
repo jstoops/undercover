@@ -1,7 +1,5 @@
 import pytest
 
-from backend.db import DATA
-
 
 def test_list_claims(client):
     claims = client.get("/api/claims").json()
@@ -50,11 +48,6 @@ def test_get_customer_leaves_out_contact_details(client):
         "customer_since",
         "previous_claims",
     }
-
-
-def test_get_policy_wording(client):
-    wording = client.get("/api/policy-wording").json()["policy_wording"]
-    assert wording == (DATA / "policy_wording.md").read_text(encoding="utf-8")
 
 
 def test_list_handlers(client):

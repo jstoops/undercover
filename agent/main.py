@@ -17,7 +17,11 @@ load_dotenv(override=True)
 
 BACKEND_URL = "http://127.0.0.1:8000"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_MODEL = "openai/gpt-6-luna"
+DEFAULT_MODEL = "z-ai/glm-5.3-flash"
+DEFAULT_IGNORED_PROVIDERS = "wafer"
+MODEL_TIMEOUT = 120
+
+Document = Literal["policy-wording", "claims-manual"]
 
 
 def backend() -> httpx.Client:
@@ -50,6 +54,18 @@ def get_customer(customer_id: str) -> str:
 
 
 @tool
+def list_sections(document: Document) -> str:
+    """List the sections of the policy wording or the claims manual, with topics."""
+    return call("GET", f"/api/documents/{document}/sections")
+
+
+@tool
+def read_section(document: Document, number: int) -> str:
+    """Read one numbered section of the policy wording or the claims manual."""
+    return call("GET", f"/api/documents/{document}/sections/{number}")
+
+
+@tool
 def decide_claim(
     claim_id: str,
     decision: Literal["approve", "decline", "refer"],
@@ -76,25 +92,40 @@ def pay_claim(claim_id: str, amount: float) -> str:
     return call("POST", f"/api/claims/{claim_id}/payment", {"amount": amount})
 
 
-TOOLS = [get_claim, get_policy, get_customer, decide_claim, pay_claim]
+TOOLS = [
+    get_claim,
+    get_policy,
+    get_customer,
+    list_sections,
+    read_section,
+    decide_claim,
+    pay_claim,
+]
+
+
+def ignored_providers() -> list[str]:
+    """Return the OpenRouter providers to skip: OPENROUTER_IGNORE, or Wafer."""
+    names = os.getenv("OPENROUTER_IGNORE", DEFAULT_IGNORED_PROVIDERS).split(",")
+    return [name.strip() for name in names if name.strip()]
 
 
 def model() -> ChatOpenAI:
-    """Return the model named in MODEL_NAME, or GPT-6 Luna by default."""
+    """Return the model named in MODEL_NAME, or GLM 5.3 Flash by default."""
     name = os.getenv("MODEL_NAME")
+    ignore = ignored_providers()
     return ChatOpenAI(
         model=name or DEFAULT_MODEL,
         base_url=OPENROUTER_BASE_URL,
         api_key=SecretStr(os.environ["OPENROUTER_API_KEY"]),
         reasoning_effort=None if name else "low",
+        timeout=MODEL_TIMEOUT,
+        extra_body={"provider": {"ignore": ignore}} if ignore else None,
     )
 
 
 def system_prompt(client: httpx.Client) -> str:
-    """Build the system prompt from the instructions and the policy wording."""
-    instructions = client.get("/api/instructions").raise_for_status().json()
-    wording = client.get("/api/policy-wording").raise_for_status().json()
-    return f"{instructions['instructions']}\n{wording['policy_wording']}"
+    """Return the agent's instructions, fetched through the API."""
+    return client.get("/api/instructions").raise_for_status().json()["instructions"]
 
 
 def steps(message: BaseMessage) -> list[dict[str, str]]:

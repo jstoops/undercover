@@ -1,34 +1,38 @@
 import type { Step } from "./api";
 import { time } from "./format";
+import { documentName, field, parse } from "./steps";
 
 const TOOL_LABELS: Partial<Record<string, string>> = {
   get_claim: "Read the claim",
   get_policy: "Read the policy",
   get_customer: "Read the customer's claim history",
+  list_sections: "Looked up the contents",
+  read_section: "Read a section",
   decide_claim: "Recorded the decision",
   pay_claim: "Asked to pay",
 };
 
-function parse(content: string): unknown {
-  try {
-    return JSON.parse(content);
-  } catch {
-    return content;
-  }
+function refusal(value: unknown): string | null {
+  const detail = field(value, "detail");
+  return typeof detail === "string" ? detail : null;
 }
 
-function refusal(value: unknown): string | null {
-  return typeof value === "object" &&
-    value !== null &&
-    "detail" in value &&
-    typeof value.detail === "string"
-    ? value.detail
-    : null;
+/** A tool call in plain words, naming the document for a lookup. */
+function callLabel(step: Step, value: unknown): string {
+  const document = documentName(field(value, "document")).toLowerCase();
+  if (step.name === "list_sections")
+    return `Looked up the contents of the ${document}`;
+  if (step.name === "read_section")
+    return `Read the ${document}, section ${String(field(value, "number"))}`;
+  return TOOL_LABELS[step.name] ?? step.name;
 }
 
 function StepItem({ step }: Readonly<{ step: Step }>) {
-  const label = TOOL_LABELS[step.name] ?? step.name;
   const value = parse(step.content);
+  const label =
+    step.kind === "tool_call"
+      ? callLabel(step, value)
+      : (TOOL_LABELS[step.name] ?? step.name);
   const shown =
     typeof value === "string" ? value : JSON.stringify(value, null, 2);
   const refused = step.kind === "tool_result" ? refusal(value) : null;
