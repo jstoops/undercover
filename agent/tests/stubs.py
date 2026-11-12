@@ -12,12 +12,19 @@ REASON = "The delay was over the waiting period. The receipts total $420.00."
 
 
 class StubModel(GenericFakeChatModel):
-    """A chat model that gives scripted replies in place of a real model."""
+    """A chat model that gives scripted replies in place of a real model.
+
+    When it is given the claim agent's tools, it hands over to claims, if set,
+    so one model can stand in for both agents in a run of the queue.
+    """
 
     errors: list[Any] = []
     seen: list[Any] = []
+    claims: BaseChatModel | None = None
 
     def bind_tools(self, tools, **kwargs):
+        if self.claims and "decide_claim" in {tool.name for tool in tools}:
+            return self.claims
         return self
 
     def _generate(self, messages, *args, **kwargs):
@@ -27,9 +34,9 @@ class StubModel(GenericFakeChatModel):
         return super()._generate(messages, *args, **kwargs)
 
 
-def script(*replies, errors=()):
+def script(*replies, errors=(), claims=None):
     """A stub that raises each of the errors in turn, then gives the replies."""
-    return StubModel(messages=iter(replies), errors=list(errors))
+    return StubModel(messages=iter(replies), errors=list(errors), claims=claims)
 
 
 def calls(name, args, call_id):

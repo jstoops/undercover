@@ -1,9 +1,5 @@
 import type { Step } from "./api";
-
-export const DOCUMENT_NAMES: Partial<Record<string, string>> = {
-  "policy-wording": "Policy wording",
-  "claims-manual": "Claims manual",
-};
+import { DOCUMENT_NAMES } from "./labels";
 
 export interface SectionRead {
   document: string;

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { failClaim, startClaim } from "./api";
 
 // Other tests change some claims at the same time, so these check the queue's
 // shape rather than how many claims are in each state.
@@ -35,11 +36,8 @@ test("a claim that fails twice is left for a handler", async ({
   request,
 }) => {
   for (const reason of ["The model provider timed out", "No decision"]) {
-    await request.post("/api/claims/CLM-1008/start");
-    const failed = await request.post("/api/claims/CLM-1008/failure", {
-      data: { thread_id: "e2e", reason },
-    });
-    expect(failed.ok()).toBe(true);
+    await startClaim(request, "CLM-1008");
+    await failClaim(request, "CLM-1008", reason);
   }
   await page.goto("/");
   await expect(page.getByRole("row", { name: /CLM-1008/ })).toContainText(
@@ -63,7 +61,6 @@ test("the queue shows a claim in progress without a reload", async ({
   await page.goto("/");
   const row = page.getByRole("row", { name: /CLM-1004/ });
   await expect(row).toContainText("Waiting");
-  const started = await request.post("/api/claims/CLM-1004/start");
-  expect(started.ok()).toBe(true);
+  await startClaim(request, "CLM-1004");
   await expect(row).toContainText("In progress");
 });

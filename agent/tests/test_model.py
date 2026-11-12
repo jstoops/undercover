@@ -1,7 +1,7 @@
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import HumanMessage
 
-from agent import main
+from agent import harness
 
 
 def payload(monkeypatch, **env):
@@ -10,7 +10,7 @@ def payload(monkeypatch, **env):
         monkeypatch.delenv(name, raising=False)
     for name, value in env.items():
         monkeypatch.setenv(name, value)
-    return main.model()._get_request_payload([HumanMessage(content="Hi")])
+    return harness.model()._get_request_payload([HumanMessage(content="Hi")])
 
 
 def test_the_default_model(monkeypatch):
@@ -34,13 +34,3 @@ def test_providers_to_skip(monkeypatch, model_name):
     assert request["extra_body"] == {"provider": {"ignore": ["wafer", "deepinfra"]}}
     request = payload(monkeypatch, OPENROUTER_IGNORE="", **env)
     assert "extra_body" not in request
-
-
-def test_messages_in_an_update():
-    first, second = AIMessage(content="One"), AIMessage(content="Two")
-    update = {
-        "model": {"messages": [first]},
-        "tools": [{"messages": [second]}, {"todos": []}],
-        "Check.after_model": None,
-    }
-    assert main.messages_in(update) == [first, second]

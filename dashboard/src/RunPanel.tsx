@@ -1,18 +1,7 @@
-import { paths, type Run, type RunStatus, type TodoStatus } from "./api";
+import { paths, type Run } from "./api";
 import { dateTime } from "./format";
+import { RUN_LABELS, TODO_LABELS } from "./labels";
 import { useApi } from "./useApi";
-
-const RUN_LABELS: Record<RunStatus, string> = {
-  running: "Running",
-  finished: "Finished",
-  stopped: "Stopped",
-};
-
-const TODO_LABELS: Record<TodoStatus, string> = {
-  pending: "To do",
-  in_progress: "In progress",
-  completed: "Done",
-};
 
 function RunDetails({ run }: Readonly<{ run: Run }>) {
   return (

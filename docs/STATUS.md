@@ -2,6 +2,15 @@
 
 The pilot from `docs/PLAN.md` and the harness from `docs/PLAN_HARNESS.md` are built: all six phases of the pilot and all five of the harness are done. The UnderCover Agent now works the whole queue in one run: a queue agent plans the run as a to-do list and hands each claim to a fresh claim agent, which looks up the sections of the policy wording and the claims manual it needs. Failures are put right without stopping the run.
 
+After the harness build, a code review (`docs/HUMAN_REVIEW_HARNESS.md`) found problems in the code and the instructions:
+
+- hard-coded backend paths spread across the agent, with two ways of calling the backend
+- the agent split by agent rather than by job
+- plumbing that LangChain 1.x already provides
+- step-by-step scripts for instructions
+
+The agent, the backend, the dashboard's labels and the end-to-end tests' API calls were reorganized to fix them (see "Review fixes" below). `docs/CODE_STANDARDS.md` and `docs/PROCESS.md` now carry the rules and the review step that would have caught them.
+
 ## How to run it
 
 - `uv sync` and `npm install` install everything.
@@ -16,6 +25,14 @@ The pilot from `docs/PLAN.md` and the harness from `docs/PLAN_HARNESS.md` are bu
 ### `backend/`
 
 FastAPI on SQLite (`undercover.db` at the repo root, or the path in `UNDERCOVER_DB`). The seed (`backend/seed.py`) loads the 25 claims in the queue, the policies, the customers (name, customer-since date and earlier claims only) and the handlers from `data/`. It never reads `data/evals/` or `data/security/`, and no operation serves them. The $1,000 limit comes from `data/company.json`.
+
+`main.py` puts the app together from three routers, all under `/api`:
+
+- `claims.py`: the queue and the rules for working a claim
+- `runs.py`: runs and their to-do lists
+- `records.py`: policies, customers, handlers, the documents and the instructions
+
+`db.py` holds the database and the helpers the routers share. Every change to a claim's status goes through `set_status` in `claims.py`, and every insert names its columns.
 
 Every operation has an `operation_id`, a one-line docstring and no optional inputs, and a test checks this.
 
@@ -56,25 +73,32 @@ The documents (`backend/documents.py`): `list_sections` and `read_section` serve
 
 ### `agent/`
 
-The UnderCover Agent: LangChain's `create_agent` on OpenRouter. `agent/main.py` holds what the agents share: the backend client, the model and the model retries.
+The UnderCover Agent: LangChain's `create_agent` on OpenRouter, in four modules, each with one job:
 
-The claim agent (`agent/claim_agent.py`) works one claim. Its tools are `get_claim`, `get_policy`, `get_customer`, `list_sections`, `read_section`, `decide_claim` and `pay_claim`, and each calls the backend's API and returns its reply, refusals included. Its system prompt is its instructions (`backend/instructions/claim.md`, fetched through the API), and it looks up the sections of the wording and the manual it needs.
+- `api.py`: every call to the backend, with the base URL (`http://127.0.0.1:8000/api`) once. A refusal (a 4xx) raises `api.Refused` with the backend's reason.
+- `tools.py`: every tool, each a call to `api.py`.
+  - The claim agent has `get_claim`, `get_policy`, `get_customer`, `list_sections`, `read_section`, `decide_claim` and `pay_claim`.
+  - The queue agent has `list_waiting_claims` and `work_claim`, which read the run's `RunContext` through `ToolRuntime`.
+- `harness.py`: the model, the middleware and the two agents.
+- `__main__.py`: the `uv run -m agent` command, which chooses the model once and passes it in.
 
-- `try_claim(claim_id)` starts the claim and runs a new claim agent on a new thread, which posts each tool call, tool result and reply to the backend as a step. Then it returns one line built from the claim's record, not from the model's reply.
+The claim agent works one claim. Its system prompt is its instructions (`backend/instructions/claim.md`, fetched through the API), and it looks up the sections of the wording and the manual it needs.
+
+- `harness.work_claim(claim_id, model)` starts the claim and has a claim agent work it from a clean start. Then it returns one line built from the claim's record, not from the model's reply.
+- `RecordSteps` middleware posts each reply, tool call and tool result to the backend as a step, under a new thread id for each try.
+- A refusal from the backend, such as a payment held for sign-off, goes back to the model as the tool's result (`ToolErrorMiddleware`).
 - Its middleware retries a model call that fails, such as a provider error or a 120-second timeout, up to 3 times. It retries a backend call that can't connect or times out up to 2 times, and stops a claim agent after 30 model calls.
-- If the claim agent still raises an error, or finishes without recording a decision, `try_claim` calls `fail_claim` and says so in its line. One bad claim never stops the run.
+- If the claim agent still raises an error, or finishes without recording a decision, the harness calls `fail_claim` and says so in its line. One bad claim never stops the run.
 
-The queue agent (`agent/queue_agent.py`) runs the queue. `run_queue(cap)` starts a run and gives the agent its instructions (`backend/instructions/queue.md`) and its cap.
+The queue agent runs the queue. `harness.run_queue(cap, model)` starts a run and builds a claim agent for it. It gives the queue agent its instructions (`backend/instructions/queue.md`), its cap and a `RunContext` (`context_schema`), which holds the run's id, its cap, the claims it has started and how to hand a claim to the claim agent.
 
-- Its tools are `list_waiting_claims` and `work_claim`, which calls `try_claim` and reports back in one line.
-- LangChain's `TodoListMiddleware` gives it `write_todos` with our own tool description, and the harness saves each new list to the backend for the dashboard.
-- `work_claim` enforces the cap: it counts the different claims the run has started, under a lock in case of parallel calls. A second try of the same claim counts once.
+- Its tools are `list_waiting_claims` and `work_claim`, which hands one claim to the claim agent and reports back in one line.
+- LangChain's `TodoListMiddleware` gives it `write_todos` with our own tool description. `ShowProgress` middleware saves each new list to the backend for the dashboard and prints each claim's line.
+- `work_claim` enforces the cap: `RunContext` counts the different claims the run has started, under a lock in case of parallel calls. A second try of the same claim counts once.
 - The missed-claims check (`MissedClaimsCheck`, an `after_model` hook) runs when the agent replies without calling a tool. If a claim the run tried is back in the queue, or claims are waiting and the run is under its cap, it sends the agent back with a message naming them. It does this at most 3 times a run.
 - The agent's final reply is the run's summary. If the queue agent fails after its retries, the run is marked stopped with the error.
 
-`agent/__main__.py` is the `uv run -m agent` command.
-
-Both sets of instructions are written from the policy wording and the claims manual alone, never from the handlers' decisions. The claim instructions follow the manual's order of work, name the sections every claim needs, and tell the agent to work its decision out in full, including the payout, before it calls `decide_claim`. The queue instructions tell the agent how to keep its to-do list (each item starts with its claim id), to try a claim again when it comes back to the queue, to check the queue before it finishes, and what the summary holds.
+Both sets of instructions are written from the policy wording and the claims manual alone, never from the handlers' decisions. Each gives the agent its goal, what it has to work with and the rules it must keep, and leaves the steps to the agent. The claim instructions send the agent to the manual for how a claim is worked and how a payout is worked out. The queue instructions say what the to-do list and the summary must show.
 
 ### `dashboard/`
 
@@ -84,16 +108,41 @@ React, Vite and React Router in UnderCover's brand (`dashboard/src/styles.css`),
 - A claim (`/claims/:claimId`): the agent's decision with its reason and policy section; the payment, or the held payment and a sign-off form; what the agent read, such as "Claims manual, 7. Interpretation notes"; the agent's steps as they arrive, in plain words, such as "Read the claims manual, section 7", and any failure as "Failed: …"; the claim in full; the policy; and the customer's earlier claims. It refreshes every 2 seconds.
 - The instructions (`/instructions`): the queue agent's ("Running the queue") and the claim agent's ("Working a claim"), read only, exactly as the agents read them.
 
-`api.ts` tags each API path with its response type.
+`api.ts` holds the API's types, its paths, each tagged with its response type, and the calls to it. `labels.ts` holds every word shown for a code the API returns, such as "Left for a handler".
 
 ### `e2e/`
 
-Playwright tests of the queue, the instructions, a claim in full, the agent's steps arriving, what the agent read, a claim left for a handler, a handler's sign-off and a run's to-do list filling in. `e2e/run.spec.ts` is the only test that starts a run. They drive the API the way the agent does and never run a model.
+Playwright tests of the queue, the instructions, a claim in full, the agent's steps arriving, what the agent read, a claim left for a handler, a handler's sign-off and a run's to-do list filling in. `e2e/run.spec.ts` is the only test that starts a run. They drive the API the way the agent does, through `e2e/api.ts`, and never run a model.
 
 ### Other
 
 - `.prettierrc.json` pins Prettier to its defaults, so a Prettier config in a parent folder can't change the repo's formatting.
-- Tests never call a model: the agent's tests use a stub model.
+- Tests never call a model: the agent's tests pass a stub model in, the way the command passes the real one.
+- The structure checks listed in `docs/CODE_STANDARDS.md` run with the other checks. They cover each job's one home in the agent, a claim's status changing in one place, named columns, goal-based instructions and the API's paths.
+
+## Review fixes
+
+The code review in `docs/HUMAN_REVIEW_HARNESS.md`, and what changed:
+
+1. **Hard-coded URLs and two ways to call the backend.** Every call is now in `agent/api.py`, with the base URL once, and one `call()` either returns the reply or raises `Refused`.
+2. **The modules.** `agent/main.py`, `claim_agent.py` and `queue_agent.py` are gone. In their place are `api.py`, `tools.py`, `harness.py` and `__main__.py`.
+3. **The harness.** It is all in `harness.py`, and every tool is in `tools.py`.
+   - The queue agent's tools read the run through `context_schema=RunContext` and `ToolRuntime`, not a closure.
+   - Refusals reach the model through `ToolErrorMiddleware`.
+   - Middleware hooks save steps and to-do lists, so `run_queue` no longer picks through the agent's stream and is a few lines long.
+   - The model is a required argument, chosen once by the command. `llm or main.model()` is gone, and the tests pass their stub models the same way.
+4. **The instructions.** Both now give a goal, what the agent has to work with and the rules it must keep, with no numbered steps.
+
+Similar problems in the rest of the code, now fixed:
+
+- **Backend:**
+  - `main.py` held every route with its SQL and the rules. It is now a router for each part.
+  - A claim's status was changed in five places with raw SQL. It now goes through `set_status`.
+  - There were two ways to answer 404 and a repeated query to check that a claim exists. Now `found()` and `load_claim()` do both.
+  - Inserts relied on the order of the columns. They now name them.
+  - Two different types were both called `Document`. The one for a claim's documents is now `ClaimDocument`.
+- **Dashboard:** the API's paths were already all in `api.ts`. But the words shown for the API's codes were split between `api.ts` and three components, and the list of statuses was written twice. Now the words are in `labels.ts`, and the type is built from `STATUSES`.
+- **End-to-end tests:** the API's paths and a `decide` helper were repeated across the specs. They are now in `e2e/api.ts`.
 
 ## What we've seen from the agent
 
@@ -115,4 +164,8 @@ Playwright tests of the queue, the instructions, a claim in full, the agent's st
   - It mostly chose the claims submitted earliest, but took CLM-1010 (July 2) and CLM-1015 ahead of CLM-1018 (July 1).
   - Its summary came out in Markdown, which the dashboard shows as written, with `**` marks, so the queue instructions now ask for plain text.
 - A second acceptance run, after a reseed, with the plain-text instruction: the same five claims came out the same way, in 115 seconds and 54 model calls, and the summary was plain text. All 54 calls ran on GLM 5.3 Flash, served by InferenceNet (19), Crusoe (16), Together (9), OpenInference (7), Venice, Parasail and Reka (1 each), and none by Wafer. Reasoning came to at most 270 tokens a call, 21 on average. OpenRouter's generation API reports the provider for each call by its id.
+- After the review fixes, a run capped at 5 used the goal-based instructions on a fresh database of its own, apart from `undercover.db`. It took 161 seconds, with no failures:
+  - CLM-1001 approve $420.00, paid; CLM-1008 approve $2,240.00, CLM-1011 approve $1,100.00 and CLM-1003 approve $3,750.00, all three waiting for sign-off; CLM-1015 declined.
+  - The to-do list gave each claim its id and summary, then a summary item, and every item ended Done. The summary was plain text, and each held payment showed on its claim as a refusal.
+  - CLM-1011 is $1,150.00 by section 6 of the manual. This time the agent capped the total at the $1,500 maximum before taking off the carrier's $350 and the $50 deductible. Two more tries of CLM-1011 alone both gave $1,150.00, in the manual's order, as the earlier runs did. So it was a slip, of the kind CLM-1003 showed in the pilot, and only measuring against the handlers' decisions will show how often it happens.
 - The agent's accuracy against the handlers' decisions isn't measured yet.

@@ -15,6 +15,6 @@ test("the instructions page shows both sets of instructions, read only", async (
   await expect(queue).toContainText("work_claim");
   const claim = page.getByRole("region", { name: "Working a claim" });
   await expect(claim).toContainText("# The UnderCover Agent: working a claim");
-  await expect(claim).toContainText("Payouts over $1,000");
+  await expect(claim).toContainText("A payout over $1,000 is held");
   await expect(page.getByRole("textbox")).toHaveCount(0);
 });

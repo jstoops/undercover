@@ -1,16 +1,7 @@
 import type { Step } from "./api";
 import { time } from "./format";
+import { TOOL_LABELS } from "./labels";
 import { documentName, field, parse } from "./steps";
-
-const TOOL_LABELS: Partial<Record<string, string>> = {
-  get_claim: "Read the claim",
-  get_policy: "Read the policy",
-  get_customer: "Read the customer's claim history",
-  list_sections: "Looked up the contents",
-  read_section: "Read a section",
-  decide_claim: "Recorded the decision",
-  pay_claim: "Asked to pay",
-};
 
 function refusal(value: unknown): string | null {
   const detail = field(value, "detail");

@@ -1,3 +1,4 @@
+import re
 import sqlite3
 from contextlib import closing
 
@@ -44,15 +45,22 @@ def test_get_instructions(client):
     assert "$1,000" in claim
     assert "`list_sections`" in claim
     assert "`read_section`" in claim
-    assert "before you record it" in claim
+    assert "A recorded decision is final" in claim
     queue = instructions["queue"]
     assert queue.startswith("# The UnderCover Agent: running the queue")
     for name in ("list_waiting_claims", "write_todos", "work_claim"):
         assert f"`{name}`" in queue
-    assert "Before you finish" in queue
+    assert "Don't finish while a claim you could still work is waiting" in queue
     for text in (claim, queue):
         assert "evals" not in text
         assert "handlers' decisions" not in text
+
+
+@pytest.mark.parametrize("agent", ["claim", "queue"])
+def test_instructions_give_a_goal_not_a_script(client, agent):
+    text = client.get("/api/instructions").json()[agent]
+    assert "## Your goal" in text
+    assert not re.search(r"^\s*\d+\. ", text, re.MULTILINE)
 
 
 def test_start_claim(client):

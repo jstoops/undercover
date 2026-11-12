@@ -1,9 +1,7 @@
-import json
-
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from agent import main, queue_agent
+from agent import api, harness, tools
 from agent.tests.stubs import ClaimStub, calls, script
 
 BOOM = RuntimeError("The model provider is down")
@@ -11,11 +9,9 @@ BOOM = RuntimeError("The model provider is down")
 
 @pytest.fixture
 def claims(backend, monkeypatch):
-    """Script the claim agents: an action for each try at each claim."""
-    monkeypatch.setattr(main, "MODEL_RETRIES", 0)
-    stub = ClaimStub(actions={})
-    monkeypatch.setattr(main, "model", lambda: stub)
-    return stub.actions
+    """The claim agents' model: each test scripts an action for each try at a claim."""
+    monkeypatch.setattr(harness, "MODEL_RETRIES", 0)
+    return ClaimStub(actions={})
 
 
 def work(*claim_ids):
@@ -39,15 +35,15 @@ def current_run(backend):
 
 
 def test_the_todo_list_is_saved_and_shown(backend, claims, monkeypatch):
-    claims["CLM-1001"] = [("approve", 420)]
+    claims.actions["CLM-1001"] = [("approve", 420)]
     saved = []
-    real_save = queue_agent.save_todos
+    real_save = api.save_todos
 
-    def save_todos(client, run_id, items):
+    def save_todos(run_id, items):
         saved.append([item["status"] for item in items])
-        real_save(client, run_id, items)
+        real_save(run_id, items)
 
-    monkeypatch.setattr(queue_agent, "save_todos", save_todos)
+    monkeypatch.setattr(api, "save_todos", save_todos)
     summary = "Worked 1 claim: 1 approved."
     model = script(
         calls("list_waiting_claims", {}, "list"),
@@ -56,8 +52,9 @@ def test_the_todo_list_is_saved_and_shown(backend, claims, monkeypatch):
         todos("t2", ("CLM-1001: flight", "completed"), ("Summary", "in_progress")),
         todos("t3", ("CLM-1001: flight", "completed"), ("Summary", "completed")),
         AIMessage(content=summary),
+        claims=claims,
     )
-    assert queue_agent.run_queue(1, model) == summary
+    assert harness.run_queue(1, model) == summary
     assert saved == [
         ["in_progress", "pending"],
         ["completed", "in_progress"],
@@ -77,11 +74,15 @@ def test_the_todo_list_is_saved_and_shown(backend, claims, monkeypatch):
 
 
 def test_the_cap(backend, claims, capsys):
-    claims.update({"CLM-1001": [("approve", 420)], "CLM-1002": [("decline", 0)]})
-    model = script(
-        *work("CLM-1001", "CLM-1002", "CLM-1003"), AIMessage(content="Done.")
+    claims.actions.update(
+        {"CLM-1001": [("approve", 420)], "CLM-1002": [("decline", 0)]}
     )
-    queue_agent.run_queue(2, model)
+    model = script(
+        *work("CLM-1001", "CLM-1002", "CLM-1003"),
+        AIMessage(content="Done."),
+        claims=claims,
+    )
+    harness.run_queue(2, model)
     out = capsys.readouterr().out
     assert "CLM-1001: approve $420.00, not paid" in out
     assert "CLM-1002: decline" in out
@@ -92,7 +93,9 @@ def test_the_cap(backend, claims, capsys):
 
 
 def test_parallel_calls_keep_to_the_cap(backend, claims):
-    claims.update({"CLM-1001": [("approve", 420)], "CLM-1002": [("approve", 420)]})
+    claims.actions.update(
+        {"CLM-1001": [("approve", 420)], "CLM-1002": [("approve", 420)]}
+    )
     both = AIMessage(
         content="",
         tool_calls=[
@@ -100,13 +103,13 @@ def test_parallel_calls_keep_to_the_cap(backend, claims):
             for c in ("CLM-1001", "CLM-1002")
         ],
     )
-    queue_agent.run_queue(1, script(both, AIMessage(content="Done.")))
+    harness.run_queue(1, script(both, AIMessage(content="Done."), claims=claims))
     statuses = sorted([status(backend, "CLM-1001"), status(backend, "CLM-1002")])
     assert statuses == ["decided", "waiting"]
 
 
 def test_a_failed_claim_does_not_stop_the_run(backend, claims):
-    claims.update(
+    claims.actions.update(
         {
             "CLM-1001": [BOOM, BOOM],
             "CLM-1002": [("approve", 420)],
@@ -118,8 +121,9 @@ def test_a_failed_claim_does_not_stop_the_run(backend, claims):
         AIMessage(content="Done."),
         *work("CLM-1001"),
         AIMessage(content="Done, with CLM-1001 left for a handler."),
+        claims=claims,
     )
-    summary = queue_agent.run_queue(3, model)
+    summary = harness.run_queue(3, model)
     assert summary == "Done, with CLM-1001 left for a handler."
     assert status(backend, "CLM-1002") == "decided"
     assert status(backend, "CLM-1003") == "decided"
@@ -129,9 +133,11 @@ def test_a_failed_claim_does_not_stop_the_run(backend, claims):
 def test_a_failed_claim_goes_back_in_the_queue_and_is_tried_again(
     backend, claims, capsys
 ):
-    claims["CLM-1001"] = [BOOM, ("approve", 420)]
-    model = script(*work("CLM-1001", "CLM-1001"), AIMessage(content="Done."))
-    queue_agent.run_queue(1, model)
+    claims.actions["CLM-1001"] = [BOOM, ("approve", 420)]
+    model = script(
+        *work("CLM-1001", "CLM-1001"), AIMessage(content="Done."), claims=claims
+    )
+    harness.run_queue(1, model)
     lines = capsys.readouterr().out.splitlines()
     assert lines == [
         "CLM-1001: failed (RuntimeError: The model provider is down),"
@@ -144,14 +150,15 @@ def test_a_failed_claim_goes_back_in_the_queue_and_is_tried_again(
 
 
 def test_a_claim_that_fails_twice_is_left_for_a_handler(backend, claims, capsys):
-    claims["CLM-1001"] = [BOOM, BOOM]
+    claims.actions["CLM-1001"] = [BOOM, BOOM]
     model = script(
         todos("t1", ("CLM-1001: flight", "in_progress")),
         *work("CLM-1001", "CLM-1001", "CLM-1001"),
         todos("t2", ("CLM-1001: flight", "completed")),
         AIMessage(content="Done."),
+        claims=claims,
     )
-    queue_agent.run_queue(1, model)
+    harness.run_queue(1, model)
     lines = capsys.readouterr().out.splitlines()
     assert lines[1] == (
         "CLM-1001: failed again (RuntimeError: The model provider is down),"
@@ -165,15 +172,16 @@ def test_a_claim_that_fails_twice_is_left_for_a_handler(backend, claims, capsys)
 
 
 def test_the_todo_list_shows_progress_and_the_queue_shows_outcomes(backend, claims):
-    claims.update({"CLM-1001": [("refer", 0)], "CLM-1003": [("approve", 3750)]})
+    claims.actions.update({"CLM-1001": [("refer", 0)], "CLM-1003": [("approve", 3750)]})
     model = script(
         *work("CLM-1001", "CLM-1003"),
         todos(
             "t1", ("CLM-1001: flight", "completed"), ("CLM-1003: wrist", "completed")
         ),
         AIMessage(content="Done."),
+        claims=claims,
     )
-    queue_agent.run_queue(2, model)
+    harness.run_queue(2, model)
     assert status(backend, "CLM-1001") == "decided"
     assert status(backend, "CLM-1003") == "awaiting_sign_off"
     shown = [todo["status"] for todo in current_run(backend)["todos"]]
@@ -181,14 +189,17 @@ def test_the_todo_list_shows_progress_and_the_queue_shows_outcomes(backend, clai
 
 
 def test_the_check_for_missed_claims(backend, claims):
-    claims.update({"CLM-1001": [("approve", 420)], "CLM-1002": [("approve", 420)]})
+    claims.actions.update(
+        {"CLM-1001": [("approve", 420)], "CLM-1002": [("approve", 420)]}
+    )
     model = script(
         *work("CLM-1001"),
         AIMessage(content="Done."),
         *work("CLM-1002"),
         AIMessage(content="All done."),
+        claims=claims,
     )
-    assert queue_agent.run_queue(2, model) == "All done."
+    assert harness.run_queue(2, model) == "All done."
     reminder = model.seen[2][-1]
     assert isinstance(reminder, HumanMessage)
     assert reminder.text.startswith("Before you finish: CLM-1002 still waiting")
@@ -198,17 +209,21 @@ def test_the_check_for_missed_claims(backend, claims):
 
 
 def test_the_check_gives_up_after_three_reminders(backend, claims):
-    claims["CLM-1001"] = [("approve", 420)]
-    model = script(*work("CLM-1001"), *[AIMessage(content="Done.") for _ in range(4)])
-    assert queue_agent.run_queue(2, model) == "Done."
+    claims.actions["CLM-1001"] = [("approve", 420)]
+    model = script(
+        *work("CLM-1001"),
+        *[AIMessage(content="Done.") for _ in range(4)],
+        claims=claims,
+    )
+    assert harness.run_queue(2, model) == "Done."
     reminders = [m for m in model.seen[-1] if isinstance(m, HumanMessage)]
-    assert len(reminders) == 1 + queue_agent.MAX_NUDGES
+    assert len(reminders) == 1 + harness.MAX_REMINDERS
     assert status(backend, "CLM-1002") == "waiting"
 
 
 def test_a_queue_agent_that_fails_stops_the_run(backend, claims):
     with pytest.raises(RuntimeError, match="The model provider is down"):
-        queue_agent.run_queue(5, script(errors=[BOOM]))
+        harness.run_queue(5, script(errors=[BOOM], claims=claims))
     run = current_run(backend)
     assert run["status"] == "stopped"
     assert "The model provider is down" in run["summary"]
@@ -216,8 +231,7 @@ def test_a_queue_agent_that_fails_stops_the_run(backend, claims):
 
 def test_list_waiting_claims(backend):
     backend.post("/api/claims/CLM-1001/start")
-    tools = queue_agent.queue_tools(queue_agent.Run(1, 5))
-    listed = json.loads(tools[0].invoke({}))
+    listed = tools.list_waiting_claims.invoke({})
     assert len(listed) == 24
     assert listed[0] == {
         "claim_id": "CLM-1002",

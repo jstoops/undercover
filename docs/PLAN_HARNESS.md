@@ -67,6 +67,14 @@ waiting ──start_claim──▶ in_progress ──decide_claim──▶ decid
   - It's a setting like `MODEL_NAME`, so skipping another provider later needs no code change.
 - **A run has its own record**: its cap, its status (running, finished or stopped), its times, its to-do list and its summary. The queue agent's final reply becomes the summary. If the queue agent itself fails after its retries, the run is marked stopped, with the error as its summary.
 - **The tests use stub models**: a scripted queue agent, a scripted claim agent for each claim, and a stub that raises an error the way a provider does. In tests the retries don't wait.
+- **Changed after review:** a code review after the build (`docs/HUMAN_REVIEW_HARNESS.md`) found the agent split by agent rather than by job. Over 15 backend paths were spread across `claim_agent.py` and `queue_agent.py`, with two ways of calling the backend. The shared pieces sat in `agent/main.py`, and the instructions were step-by-step scripts. `docs/CODE_STANDARDS.md` now sets out the shape this build should have had, and the agent and the backend follow it:
+  - `agent/api.py` holds every backend call, with the base URL once.
+  - `agent/tools.py` holds every tool. The queue agent's tools read the run's state through `context_schema=RunContext` and `ToolRuntime`, not a closure.
+  - `agent/harness.py` holds the model, the middleware and the two agents. A refusal reaches the model through LangChain's `ToolErrorMiddleware`. Steps and to-do lists are saved by middleware rather than read from the agent's stream, and the command chooses the model once and passes it in.
+  - Both sets of instructions give the agent a goal, what it has to work with and the rules it must keep, instead of numbered steps.
+  - The backend's `main.py` is split into a router for each part.
+
+  The phases below describe the build as it was first done, with `claim_agent.py`, `queue_agent.py` and `main.py`.
 
 ## Changes to the API
 

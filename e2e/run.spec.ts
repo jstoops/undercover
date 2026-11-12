@@ -1,24 +1,8 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { decide, finishRun, saveTodos, startClaim, startRun } from "./api";
 
 // This test drives the API the way the queue agent's harness does; it never
 // runs a model. It is the only test that starts a run.
-
-async function decide(
-  request: APIRequestContext,
-  claimId: string,
-  decision: string,
-  payout: number,
-) {
-  await request.post(`/api/claims/${claimId}/start`);
-  await request.post(`/api/claims/${claimId}/decision`, {
-    data: {
-      decision,
-      payout,
-      reason: "The wording covers the claim.",
-      policy_section: "Section 3, Trip Delay",
-    },
-  });
-}
 
 test("the queue page shows the run's to-do list as it fills in", async ({
   page,
@@ -28,8 +12,7 @@ test("the queue page shows the run's to-do list as it fills in", async ({
   const panel = page.getByRole("region", { name: "This run" });
   await expect(panel).toBeVisible();
 
-  const started = await request.post("/api/runs", { data: { cap: 2 } });
-  const runId = ((await started.json()) as { run_id: number }).run_id;
+  const runId = await startRun(request, 2);
   await expect(panel).toContainText("Running");
   await expect(panel).toContainText("up to 2 claims");
 
@@ -39,11 +22,11 @@ test("the queue page shows the run's to-do list as it fills in", async ({
     "Write the summary",
   ];
   const save = (...statuses: string[]) =>
-    request.put(`/api/runs/${String(runId)}/todos`, {
-      data: {
-        todos: items.map((content, i) => ({ content, status: statuses[i] })),
-      },
-    });
+    saveTodos(
+      request,
+      runId,
+      items.map((content, i) => ({ content, status: statuses[i] })),
+    );
   await save("in_progress", "pending", "pending");
   const todos = panel.getByRole("listitem");
   await expect(todos).toHaveText([
@@ -52,7 +35,9 @@ test("the queue page shows the run's to-do list as it fills in", async ({
     /To do.*Write the summary/,
   ]);
 
+  await startClaim(request, "CLM-1016");
   await decide(request, "CLM-1016", "approve", 300);
+  await startClaim(request, "CLM-1015");
   await decide(request, "CLM-1015", "refer", 0);
   await save("completed", "completed", "in_progress");
   await expect(todos).toHaveText([
@@ -64,9 +49,7 @@ test("the queue page shows the run's to-do list as it fills in", async ({
   await expect(referred).toContainText("Decided");
   await expect(referred).toContainText("Refer");
 
-  await request.post(`/api/runs/${String(runId)}/finish`, {
-    data: { outcome: "finished", summary: "Worked 2 claims: 1 approved." },
-  });
+  await finishRun(request, runId, "Worked 2 claims: 1 approved.");
   await expect(panel).toContainText("Finished");
   await expect(panel).toContainText("Worked 2 claims: 1 approved.");
 });

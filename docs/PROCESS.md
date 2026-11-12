@@ -15,6 +15,9 @@ The pre-commit hook runs the format, lint, type and unit test checks on every co
 When asked to plan, as in "Please plan the pilot", write the plan to `docs/PLAN.md` and write no code.
 
 - Split the work into phases, usually 5 or 6, each building on the last.
+- Show the code's layout: every module the build adds or changes, the one job each does, and which module calls which. Check it against "Structure" and "The parts" in `docs/CODE_STANDARDS.md`, so the reviewer can catch a wrong split before any code exists.
+- For each framework the build uses, read its docs for the version installed and say which of its own features the plan uses, such as LangChain's `context_schema` or its middleware, and where the plan needs code of its own.
+- Write agent instructions as a goal, as `docs/CODE_STANDARDS.md` describes. A success criterion never asks the instructions to list steps.
 - Give each phase detailed success criteria that you can verify yourself: tests that pass, commands and their output, API calls and their responses, and pages you check in the browser with the Playwright MCP server. Write each one as a checkbox.
 - Then stop and wait until you are asked to implement the plan.
 
@@ -24,14 +27,29 @@ When asked to implement the plan, as in "Please implement the plan for the pilot
 
 1. Build it, with tests.
 2. Check every success criterion and fix whatever fails.
-3. Tick off its criteria in `docs/PLAN.md` and update `docs/STATUS.md`.
-4. Commit. The pre-commit hook runs the checks; if it fails, fix the problem and commit again.
+3. Review the phase's diff as a reviewer would a pull request, against `docs/CODE_STANDARDS.md` (see "Reviewing" below), and fix what you find.
+4. Tick off its criteria in `docs/PLAN.md` and update `docs/STATUS.md`.
+5. Commit. The pre-commit hook runs the checks; if it fails, fix the problem and commit again.
 
-When the last phase is done, run `npm run check` and report the results.
+When the last phase is done, review the whole build's diff the same way, run `npm run check` and report the results.
+
+## Reviewing
+
+The checks prove the code works. They don't prove it's well made, and a green run is not a review. Before each commit, read the diff and look for:
+
+- the same path, URL, constant or rule written in more than one place
+- a second way of doing something the code already does
+- a module that has grown past its one job, or that reaches into another module
+- a module organized by feature, or a `main` or `utils` that collects whatever is shared
+- plumbing the framework already provides
+- a parameter or default that only the tests use
+- agent instructions that read as numbered steps
+
+If a phase stretches a module past its job, refactor it in that phase rather than leaving it for later. When a review, yours or the student's, finds a kind of problem that a check could catch, add the check (see "Checked automatically" in `docs/CODE_STANDARDS.md`) and the rule that goes with it.
 
 ## Rules
 
-- Add tests with each change. Tests never call a model; use a stub model.
+- Add tests with each change. Tests never call a model; use a stub model, passed in the way the product passes its model.
 - Outside a plan, commit each change once you have checked it.
 - Run `npm run check` before you hand work over.
 - Never use `git commit --no-verify`.

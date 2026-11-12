@@ -1,33 +1,15 @@
-export type Status =
-  | "waiting"
-  | "in_progress"
-  | "awaiting_sign_off"
-  | "decided"
-  | "left_for_handler";
-export type DecisionKind = "approve" | "decline" | "refer";
-export type StepKind = "tool_call" | "tool_result" | "reply" | "error";
+/** The backend's API: the shapes it returns, its paths, and calls to it. */
 
-export const STATUSES: Status[] = [
+export const STATUSES = [
   "waiting",
   "in_progress",
   "awaiting_sign_off",
   "decided",
   "left_for_handler",
-];
-
-export const STATUS_LABELS: Record<Status, string> = {
-  waiting: "Waiting",
-  in_progress: "In progress",
-  awaiting_sign_off: "Waiting for sign-off",
-  decided: "Decided",
-  left_for_handler: "Left for a handler",
-};
-
-export const DECISION_LABELS: Record<DecisionKind, string> = {
-  approve: "Approve",
-  decline: "Decline",
-  refer: "Refer",
-};
+] as const;
+export type Status = (typeof STATUSES)[number];
+export type DecisionKind = "approve" | "decline" | "refer";
+export type StepKind = "tool_call" | "tool_result" | "reply" | "error";
 
 export interface ClaimSummary {
   claim_id: string;

@@ -65,7 +65,7 @@ class Item(BaseModel):
     amount: float
 
 
-class Document(BaseModel):
+class ClaimDocument(BaseModel):
     name: str
     type: str
     content: str
@@ -116,7 +116,7 @@ class Claim(BaseModel):
     story: str
     items: list[Item]
     amount_claimed: float
-    documents: list[Document]
+    documents: list[ClaimDocument]
     status: Status
     failures: int
     decision: Decision | None

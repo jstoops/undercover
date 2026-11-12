@@ -3,7 +3,11 @@
 import os
 import sqlite3
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Annotated, Any
+
+from fastapi import Depends, HTTPException
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -132,3 +136,27 @@ def get_db() -> Iterator[sqlite3.Connection]:
         yield connection
     finally:
         connection.close()
+
+
+Db = Annotated[sqlite3.Connection, Depends(get_db)]
+
+
+def one(db: sqlite3.Connection, sql: str, key: str | int) -> dict[str, Any] | None:
+    """Return the single row that matches, or None."""
+    row = db.execute(sql, (key,)).fetchone()
+    return dict(row) if row else None
+
+
+def found(
+    db: sqlite3.Connection, sql: str, key: str | int, what: str
+) -> dict[str, Any]:
+    """Return the single row that matches, or answer 404."""
+    row = one(db, sql, key)
+    if row is None:
+        raise HTTPException(404, f"{what} {key} not found")
+    return row
+
+
+def now() -> str:
+    """Return the time now, in UTC."""
+    return datetime.now(UTC).isoformat(timespec="seconds")

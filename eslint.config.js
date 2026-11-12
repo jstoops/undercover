@@ -60,5 +60,22 @@ export default defineConfig(
     files: ["e2e/**/*.ts"],
     extends: [playwright.configs["flat/recommended"]],
   },
+  {
+    // The backend's paths live in one module each: dashboard/src/api.ts and
+    // e2e/api.ts. Everything else goes through them.
+    files: ["dashboard/src/**/*.{ts,tsx}", "e2e/**/*.ts"],
+    ignores: ["dashboard/src/api.ts", "e2e/api.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "Literal[value=/^\\/api\\//], TemplateElement[value.raw=/^\\/api\\//]",
+          message:
+            "Name the backend's paths only in api.ts, and call the API through it.",
+        },
+      ],
+    },
+  },
   prettier,
 );

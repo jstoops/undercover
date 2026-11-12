@@ -13,6 +13,11 @@ def load(name: str) -> list[dict[str, Any]]:
     return json.loads((DATA / name).read_text(encoding="utf-8"))
 
 
+def as_json(record: dict[str, Any], *fields: str) -> dict[str, Any]:
+    """Return a record with the named fields stored as JSON text."""
+    return record | {name: json.dumps(record[name]) for name in fields}
+
+
 def seed(path: Path) -> dict[str, int]:
     """Recreate the database with every claim waiting, and return what was loaded."""
     customers = load("customers.json")
@@ -22,61 +27,30 @@ def seed(path: Path) -> dict[str, int]:
     with closing(connect(path)) as db:
         db.executescript(SCHEMA)
         db.executemany(
-            "INSERT INTO customers VALUES (?, ?, ?, ?)",
-            [
-                (
-                    c["customer_id"],
-                    c["name"],
-                    c["customer_since"],
-                    json.dumps(c["previous_claims"]),
-                )
-                for c in customers
-            ],
+            "INSERT INTO customers (customer_id, name, customer_since, previous_claims)"
+            " VALUES (:customer_id, :name, :customer_since, :previous_claims)",
+            [as_json(c, "previous_claims") for c in customers],
         )
         db.executemany(
-            "INSERT INTO policies VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [
-                (
-                    p["policy_id"],
-                    p["customer_id"],
-                    p["plan"],
-                    json.dumps(p["add_ons"]),
-                    p["purchased_on"],
-                    p["sold_through"],
-                    json.dumps(p["trip"]),
-                    json.dumps(p["travelers"]),
-                    p["status"],
-                )
-                for p in policies
-            ],
+            "INSERT INTO policies (policy_id, customer_id, plan, add_ons, purchased_on,"
+            " sold_through, trip, travelers, status)"
+            " VALUES (:policy_id, :customer_id, :plan, :add_ons, :purchased_on,"
+            " :sold_through, :trip, :travelers, :status)",
+            [as_json(p, "add_ons", "trip", "travelers") for p in policies],
         )
         db.executemany(
-            "INSERT INTO claims"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', 0)",
-            [
-                (
-                    c["claim_id"],
-                    c["policy_id"],
-                    c["customer_id"],
-                    c["claim_type"],
-                    c["submitted_on"],
-                    c["incident_date"],
-                    c["incident_location"],
-                    c["summary"],
-                    c["story"],
-                    json.dumps(c["items"]),
-                    c["amount_claimed"],
-                    json.dumps(c["documents"]),
-                )
-                for c in claims
-            ],
+            "INSERT INTO claims (claim_id, policy_id, customer_id, claim_type,"
+            " submitted_on, incident_date, incident_location, summary, story, items,"
+            " amount_claimed, documents, status, failures)"
+            " VALUES (:claim_id, :policy_id, :customer_id, :claim_type,"
+            " :submitted_on, :incident_date, :incident_location, :summary, :story,"
+            " :items, :amount_claimed, :documents, 'waiting', 0)",
+            [as_json(c, "items", "documents") for c in claims],
         )
         db.executemany(
-            "INSERT INTO handlers VALUES (?, ?, ?, ?)",
-            [
-                (h["handler_id"], h["name"], h["role"], h["can_approve_over_limit"])
-                for h in handlers
-            ],
+            "INSERT INTO handlers (handler_id, name, role, can_approve_over_limit)"
+            " VALUES (:handler_id, :name, :role, :can_approve_over_limit)",
+            handlers,
         )
         db.commit()
     return {
