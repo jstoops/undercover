@@ -1,22 +1,29 @@
-"""Work the claims queue: uv run -m agent, or uv run -m agent CLM-1001 for one claim."""
+"""Work the claims queue.
 
-import sys
+uv run -m agent works every waiting claim, uv run -m agent --cap 5 works up to
+five, and uv run -m agent CLM-1001 works one claim.
+"""
 
-from agent import claim_agent, main
+import argparse
 
-
-def waiting_claims() -> list[str]:
-    """Return the ids of the claims waiting in the queue, in order."""
-    with main.backend() as client:
-        claims = client.get("/api/claims").raise_for_status().json()
-    return [claim["claim_id"] for claim in claims if claim["status"] == "waiting"]
+from agent import claim_agent, queue_agent
 
 
-def work_queue(claim_ids: list[str]) -> None:
-    """Work the claims given, or every waiting claim, printing how each one ended."""
-    for claim_id in claim_ids or waiting_claims():
-        print(claim_agent.try_claim(claim_id))
+def run(argv: list[str] | None = None) -> None:
+    """Run the queue agent on the queue, or the claim agent on one claim."""
+    parser = argparse.ArgumentParser(prog="uv run -m agent")
+    parser.add_argument("claim_id", nargs="?", help="work just this claim")
+    parser.add_argument("--cap", type=int, help="work at most this many claims")
+    args = parser.parse_args(argv)
+    if args.claim_id:
+        print(claim_agent.try_claim(args.claim_id))
+        return
+    cap = args.cap or len(queue_agent.waiting_claims())
+    if cap == 0:
+        print("No claims are waiting.")
+        return
+    print(queue_agent.run_queue(cap))
 
 
 if __name__ == "__main__":
-    work_queue(sys.argv[1:])
+    run()

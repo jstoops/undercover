@@ -38,12 +38,21 @@ def approved(client, claim_id, payout):
 
 
 def test_get_instructions(client):
-    instructions = client.get("/api/instructions").json()["instructions"]
-    assert "UnderCover Agent" in instructions
-    assert "$1,000" in instructions
-    assert "`list_sections`" in instructions
-    assert "`read_section`" in instructions
-    assert "before you record it" in instructions
+    instructions = client.get("/api/instructions").json()
+    claim = instructions["claim"]
+    assert claim.startswith("# The UnderCover Agent: working a claim")
+    assert "$1,000" in claim
+    assert "`list_sections`" in claim
+    assert "`read_section`" in claim
+    assert "before you record it" in claim
+    queue = instructions["queue"]
+    assert queue.startswith("# The UnderCover Agent: running the queue")
+    for name in ("list_waiting_claims", "write_todos", "work_claim"):
+        assert f"`{name}`" in queue
+    assert "Before you finish" in queue
+    for text in (claim, queue):
+        assert "evals" not in text
+        assert "handlers' decisions" not in text
 
 
 def test_start_claim(client):

@@ -146,7 +146,8 @@ export interface Step {
 }
 
 export interface Instructions {
-  instructions: string;
+  queue: string;
+  claim: string;
 }
 
 export type RunStatus = "running" | "finished" | "stopped";

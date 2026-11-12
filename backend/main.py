@@ -208,9 +208,11 @@ def list_handlers(db: Db) -> list[Handler]:
 
 @app.get("/api/instructions", operation_id="get_instructions")
 def get_instructions() -> Instructions:
-    """Read the UnderCover Agent's instructions."""
-    text = (INSTRUCTIONS / "claim.md").read_text(encoding="utf-8")
-    return Instructions(instructions=text)
+    """Read the UnderCover Agent's instructions for running the queue and a claim."""
+    return Instructions(
+        queue=(INSTRUCTIONS / "queue.md").read_text(encoding="utf-8"),
+        claim=(INSTRUCTIONS / "claim.md").read_text(encoding="utf-8"),
+    )
 
 
 @app.post("/api/claims/{claim_id}/start", operation_id="start_claim")

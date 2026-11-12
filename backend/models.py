@@ -56,7 +56,8 @@ class Step(StepInput):
 
 
 class Instructions(BaseModel):
-    instructions: str
+    queue: str
+    claim: str
 
 
 class Item(BaseModel):

@@ -92,7 +92,7 @@ TOOLS = [
 
 def instructions(client: httpx.Client) -> str:
     """Return the claim agent's instructions, fetched through the API."""
-    return client.get("/api/instructions").raise_for_status().json()["instructions"]
+    return client.get("/api/instructions").raise_for_status().json()["claim"]
 
 
 def steps(message: BaseMessage) -> list[dict[str, str]]:

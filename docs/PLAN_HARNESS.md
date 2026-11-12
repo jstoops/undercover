@@ -218,7 +218,7 @@ Following `AGENTS.md`'s rule against building ahead:
 
 **Success criteria**
 
-- [ ] pytest with stub models for the queue agent and each claim, none calling a real model:
+- [x] pytest with stub models for the queue agent and each claim, none calling a real model:
   - *the to-do list is stored:* the queue agent writes a three-item list with `write_todos` and ticks it off, and `GET /api/runs/current` shows each change, ending with the summary
   - *the cap:* with a cap of 2, the third claim is refused, stays waiting with no steps, and the run finishes with 2 claims worked. Two parallel `work_claim` calls with one place left start only one claim
   - *one failed claim doesn't stop the run:* the claim agent on CLM-1001 raises, and CLM-1002 and CLM-1003 are still decided
@@ -227,11 +227,11 @@ Following `AGENTS.md`'s rule against building ahead:
   - *a referral is left for a handler:* a claim agent that refers its claim leaves a completed item that shows Left for a handler, and an approval over $1,000 waiting for sign-off shows Done
   - *the check for missed claims:* a queue agent that tries to finish after one claim with a cap of 2 is sent back with a message naming the next waiting claim, and then works it. A queue agent that ignores it is let go after 3 nudges
   - a queue agent that fails after its retries leaves the run stopped, with the error as its summary
-- [ ] pytest: `uv run -m agent`, `--cap 5` and `CLM-1001` call `run_queue` and `try_claim` with the right arguments
-- [ ] `GET /api/instructions` returns both sets. Neither mentions `data/evals/` or a handler's decision
-- [ ] vitest and Playwright: the instructions page shows both sets, read only
-- [ ] After `uv run -m backend.seed`, `uv run -m agent --cap 2` on the default model works two claims, prints two reports and a summary, and leaves 23 claims waiting. The run is finished, with its to-do list all ticked off
-- [ ] `npm run check:python` and `npm run check:ts` pass, with coverage of at least 80%
+- [x] pytest: `uv run -m agent`, `--cap 5` and `CLM-1001` call `run_queue` and `try_claim` with the right arguments
+- [x] `GET /api/instructions` returns both sets. Neither mentions `data/evals/` or a handler's decision
+- [x] vitest and Playwright: the instructions page shows both sets, read only
+- [x] After `uv run -m backend.seed`, `uv run -m agent --cap 2` on the default model works two claims, prints two reports and a summary, and leaves 23 claims waiting. The run is finished, with its to-do list all ticked off
+- [x] `npm run check:python` and `npm run check:ts` pass, with coverage of at least 80%
 
 ## Phase 5: A five-claim run, and the handover
 

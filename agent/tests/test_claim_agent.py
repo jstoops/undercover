@@ -190,7 +190,7 @@ def test_an_error_after_the_decision_leaves_it_as_it_is(backend, monkeypatch):
 
 def test_the_system_prompt_is_the_instructions_alone(backend):
     prompt = claim_agent.instructions(main.backend())
-    assert prompt == backend.get("/api/instructions").json()["instructions"]
+    assert prompt == backend.get("/api/instructions").json()["claim"]
     assert "held until a handler signs off" in prompt
     assert "## 10. How we work out your payment" not in prompt
 

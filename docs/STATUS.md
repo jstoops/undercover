@@ -1,12 +1,12 @@
 # Status
 
-The pilot from `docs/PLAN.md` is built: all six phases are done. The harness from `docs/PLAN_HARNESS.md` is being built: Phases 1 to 3 are done.
+The pilot from `docs/PLAN.md` is built: all six phases are done. The harness from `docs/PLAN_HARNESS.md` is being built: Phases 1 to 4 are done.
 
 ## How to run it
 
 - `uv sync` and `npm install` install everything.
 - `npm run dev` starts the backend on port 8000 and the dashboard at http://localhost:5173. On first start the backend creates and seeds `undercover.db`.
-- `uv run -m agent` works every waiting claim in the queue, one after another, and prints a line for each, such as "CLM-1001: approve $420.00, paid". `uv run -m agent CLM-1001` works one claim. The backend must be running. Each claim makes several model calls on your OpenRouter key: `z-ai/glm-5.3-flash` at low reasoning effort, or the model in `MODEL_NAME`.
+- `uv run -m agent` starts a run of the queue agent on every waiting claim. `uv run -m agent --cap 5` works up to five and leaves the rest waiting, which keeps a trial cheap. Each prints a line per claim, such as "CLM-1001: approve $420.00, paid", then the run's summary. `uv run -m agent CLM-1001` works one claim with the claim agent alone. The backend must be running. Each claim makes several model calls on your OpenRouter key: `z-ai/glm-5.3-flash` at low reasoning effort, or the model in `MODEL_NAME`.
 - `OPENROUTER_IGNORE` in `.env` lists the OpenRouter providers to skip, separated by commas. It defaults to `wafer`, which ignored GLM 5.3 Flash's low reasoning setting in the Week 1 Day 4 lab. Set it to nothing to skip none.
 - `uv run -m backend.seed` resets the queue: every claim goes back to waiting, with no decisions, payments or steps. A decided claim is final, so run this before working the queue again.
 - `npm run check` runs every check, including the Playwright tests, which start their own backend (port 8001) and dashboard (port 5174) on a fresh database, so they never touch the queue in `npm run dev`.
@@ -64,9 +64,17 @@ The claim agent (`agent/claim_agent.py`) works one claim. Its tools are `get_cla
 - Its middleware retries a model call that fails, such as a provider error or a 120-second timeout, up to 3 times. It retries a backend call that can't connect or times out up to 2 times, and stops a claim agent after 30 model calls.
 - If the claim agent still raises an error, or finishes without recording a decision, `try_claim` calls `fail_claim` and says so in its line. One bad claim never stops the run.
 
+The queue agent (`agent/queue_agent.py`) runs the queue. `run_queue(cap)` starts a run and gives the agent its instructions (`backend/instructions/queue.md`) and its cap.
+
+- Its tools are `list_waiting_claims` and `work_claim`, which calls `try_claim` and reports back in one line.
+- LangChain's `TodoListMiddleware` gives it `write_todos` with our own tool description, and the harness saves each new list to the backend for the dashboard.
+- `work_claim` enforces the cap: it counts the different claims the run has started, under a lock in case of parallel calls. A second try of the same claim counts once.
+- The missed-claims check (`MissedClaimsCheck`, an `after_model` hook) runs when the agent replies without calling a tool. If a claim the run tried is back in the queue, or claims are waiting and the run is under its cap, it sends the agent back with a message naming them. It does this at most 3 times a run.
+- The agent's final reply is the run's summary. If the queue agent fails after its retries, the run is marked stopped with the error.
+
 `agent/__main__.py` is the `uv run -m agent` command.
 
-The instructions are written from the policy wording and the claims manual alone. They follow the manual's order of work, name the sections every claim needs, and tell the agent to work its decision out in full, including the payout, before it calls `decide_claim`.
+Both sets of instructions are written from the policy wording and the claims manual alone, never from the handlers' decisions. The claim instructions follow the manual's order of work, name the sections every claim needs, and tell the agent to work its decision out in full, including the payout, before it calls `decide_claim`. The queue instructions tell the agent how to keep its to-do list (each item starts with its claim id), to try a claim again when it comes back to the queue, to check the queue before it finishes, and what the summary holds.
 
 ### `dashboard/`
 
@@ -74,7 +82,7 @@ React, Vite and React Router in UnderCover's brand (`dashboard/src/styles.css`),
 
 - The queue (`/`): the current run, with its status, cap, to-do list (To do, In progress, Done or Left for a handler) and summary; a count for each status (Waiting, In progress, Waiting for sign-off, Decided and Left for a handler, in Bright red), which you can click to filter, and the claims with their status, decision and payout. It refreshes every 2 seconds.
 - A claim (`/claims/:claimId`): the agent's decision with its reason and policy section; the payment, or the held payment and a sign-off form; what the agent read, such as "Claims manual, 7. Interpretation notes"; the agent's steps as they arrive, in plain words, such as "Read the claims manual, section 7", and any failure as "Failed: …"; the claim in full; the policy; and the customer's earlier claims. It refreshes every 2 seconds.
-- The instructions (`/instructions`): the agent's instructions, read only, exactly as the agent reads them.
+- The instructions (`/instructions`): the queue agent's ("Running the queue") and the claim agent's ("Working a claim"), read only, exactly as the agents read them.
 
 `api.ts` tags each API path with its response type.
 
@@ -98,3 +106,4 @@ Playwright tests of the queue, the instructions, a claim in full, the agent's st
 - On GLM 5.3 Flash, CLM-1020 (sunglasses taken by a monkey) was approved for $240.00 and paid. The agent read the contents of both documents, then sections 1 and 5 of the wording and sections 5, 6 and 7 of the manual. Its reason treats the loss as caused by a wild animal, not as theft, as the manual's note says. It skipped some of the sections the instructions say every claim needs (sections 9 to 11 of the wording and sections 2 and 9 of the manual).
 - Two sample calls with the agent's model settings were served on GLM 5.3 Flash by InferenceNet and Reka, not Wafer, with 67 and 0 reasoning tokens. OpenRouter's generation API reports the provider for each call.
 - CLM-1001 through `try_claim` on GLM 5.3 Flash: "CLM-1001: approve $420.00, paid", which matches the record.
+- A run capped at 2 on GLM 5.3 Flash chose the two claims submitted earliest. It approved CLM-1001 ($420.00, paid) and CLM-1008 ($2,240.00, waiting for sign-off), ticked off its three-item to-do list, wrote a summary for the handlers and left 23 claims waiting.

@@ -1,28 +1,45 @@
 import pytest
 
 from agent import __main__ as cli
-from agent import claim_agent
+from agent import claim_agent, queue_agent
 
 
 @pytest.fixture
-def worked(backend, monkeypatch):
-    claims = []
+def ran(backend, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        claim_agent,
+        "try_claim",
+        lambda claim_id: calls.append(("claim", claim_id)) or f"{claim_id}: decline",
+    )
+    monkeypatch.setattr(
+        queue_agent,
+        "run_queue",
+        lambda cap: calls.append(("queue", cap)) or "The summary.",
+    )
+    return calls
 
-    def try_claim(claim_id):
-        claims.append(claim_id)
-        return f"{claim_id}: decline"
 
-    monkeypatch.setattr(claim_agent, "try_claim", try_claim)
-    return claims
-
-
-def test_works_every_waiting_claim(backend, worked, capsys):
+def test_works_every_waiting_claim(backend, ran, capsys):
     backend.post("/api/claims/CLM-1001/start")
-    cli.work_queue([])
-    assert worked == [f"CLM-{n}" for n in range(1002, 1026)]
-    assert "CLM-1002: decline" in capsys.readouterr().out
+    cli.run([])
+    assert ran == [("queue", 24)]
+    assert capsys.readouterr().out == "The summary.\n"
 
 
-def test_works_one_claim(worked):
-    cli.work_queue(["CLM-1005"])
-    assert worked == ["CLM-1005"]
+def test_works_up_to_a_cap(ran):
+    cli.run(["--cap", "5"])
+    assert ran == [("queue", 5)]
+
+
+def test_works_one_claim(ran, capsys):
+    cli.run(["CLM-1005"])
+    assert ran == [("claim", "CLM-1005")]
+    assert capsys.readouterr().out == "CLM-1005: decline\n"
+
+
+def test_says_when_nothing_is_waiting(backend, ran, monkeypatch, capsys):
+    monkeypatch.setattr(queue_agent, "waiting_claims", list)
+    cli.run([])
+    assert ran == []
+    assert capsys.readouterr().out == "No claims are waiting.\n"
