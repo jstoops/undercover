@@ -20,7 +20,7 @@ In the pilot (`docs/STATUS.md`), our code does much of the organizing. It feeds 
 
 5. **Problems are put right automatically.** A long run will meet timeouts, errors from the model provider and steps that fail. One bad claim must never stop the run or leave a claim stuck in progress. A claim that fails before it is decided goes back in the queue to be tried again, and a claim that fails twice is left for a handler. No claim is ever decided or paid twice. Before it finishes, the agent checks that it has not missed a waiting claim within its cap.
 
-6. **The model.** Our trials found DeepSeek V4.1 Flash (`deepseek/deepseek-v4.1-flash` on OpenRouter, with low reasoning effort) the best balance of accuracy, speed and cost, so it becomes the default. `MODEL_NAME` still overrides it.
+6. **The model.** Our trials found GLM 5.3 Flash (`z-ai/glm-5.3-flash` on OpenRouter, with low reasoning effort) the best balance of accuracy, speed and cost, so it becomes the default. `MODEL_NAME` still overrides it.
 
 7. **Instructions we can read.** The instructions page shows the agent's instructions for running the queue and for working a claim. Write them from the policy wording and the manual, never from our handlers' decisions in `data/evals/`.
 
