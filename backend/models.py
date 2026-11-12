@@ -9,6 +9,9 @@ Status = Literal[
 ]
 DecisionKind = Literal["approve", "decline", "refer"]
 StepKind = Literal["tool_call", "tool_result", "reply", "error"]
+RunStatus = Literal["running", "finished", "stopped"]
+TodoStatus = Literal["pending", "in_progress", "completed"]
+ShownTodoStatus = Literal["to_do", "in_progress", "done", "left_for_handler"]
 
 
 class DecisionInput(BaseModel):
@@ -162,6 +165,40 @@ class Handler(BaseModel):
     name: str
     role: str
     can_approve_over_limit: bool
+
+
+class RunInput(BaseModel):
+    cap: int = Field(ge=1)
+
+
+class TodoInput(BaseModel):
+    content: str
+    status: TodoStatus
+
+
+class TodosInput(BaseModel):
+    todos: list[TodoInput]
+
+
+class FinishInput(BaseModel):
+    outcome: Literal["finished", "stopped"]
+    summary: str
+
+
+class Todo(BaseModel):
+    position: int
+    content: str
+    status: ShownTodoStatus
+
+
+class Run(BaseModel):
+    run_id: int
+    cap: int
+    status: RunStatus
+    started_at: str
+    finished_at: str | None
+    summary: str | None
+    todos: list[Todo]
 
 
 class SectionSummary(BaseModel):

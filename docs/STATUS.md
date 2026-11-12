@@ -1,6 +1,6 @@
 # Status
 
-The pilot from `docs/PLAN.md` is built: all six phases are done. The harness from `docs/PLAN_HARNESS.md` is being built: Phases 1 and 2 are done.
+The pilot from `docs/PLAN.md` is built: all six phases are done. The harness from `docs/PLAN_HARNESS.md` is being built: Phases 1 to 3 are done.
 
 ## How to run it
 
@@ -37,6 +37,10 @@ Every operation has an `operation_id`, a one-line docstring and no optional inpu
 | `decide_claim` | `POST /api/claims/{claim_id}/decision` |
 | `pay_claim` | `POST /api/claims/{claim_id}/payment` |
 | `sign_off_claim` | `POST /api/claims/{claim_id}/sign-off` |
+| `start_run` | `POST /api/runs` |
+| `get_current_run` | `GET /api/runs/current` |
+| `save_todos` | `PUT /api/runs/{run_id}/todos` |
+| `finish_run` | `POST /api/runs/{run_id}/finish` |
 
 The rules the backend enforces:
 
@@ -45,6 +49,8 @@ The rules the backend enforces:
 - An approval needs a payout above zero. A decline or a referral has a payout of zero.
 - `pay_claim` pays only an approved, unpaid claim, and only for the exact payout. Over $1,000 it refuses with a 403 until a handler signs off, whatever the agent does.
 - `sign_off_claim` records a handler's sign-off and pays the claim.
+- A run has a cap, a status (`running`, `finished` or `stopped`), its times, its to-do list and a summary. `start_run` marks any earlier run that is still running as stopped, and fails every claim left in progress with "The run stopped before this claim was decided". `save_todos` and `finish_run` work only on a running run.
+- `save_todos` takes the queue agent's to-do list with its statuses: `pending`, `in_progress` or `completed`. `get_current_run` shows each item as `to_do`, `in_progress`, `done` or `left_for_handler`. A completed item is left for a handler when the claim named in it (such as "CLM-1004: …") was referred or failed twice, and done otherwise, including for an approval waiting for sign-off.
 
 The documents (`backend/documents.py`): `list_sections` and `read_section` serve the policy wording (`policy-wording`) and the claims manual (`claims-manual`) by their numbered `## N. Title` sections. A section's topics are the bold lead-ins of its paragraphs and list items, such as "Wild animals" in section 7 of the manual. The whole wording is no longer served.
 
@@ -66,7 +72,7 @@ The instructions are written from the policy wording and the claims manual alone
 
 React, Vite and React Router in UnderCover's brand (`dashboard/src/styles.css`), following the system's light or dark mode.
 
-- The queue (`/`): a count for each status (Waiting, In progress, Waiting for sign-off, Decided and Left for a handler, in Bright red), which you can click to filter, and the claims with their status, decision and payout. It refreshes every 2 seconds.
+- The queue (`/`): the current run, with its status, cap, to-do list (To do, In progress, Done or Left for a handler) and summary; a count for each status (Waiting, In progress, Waiting for sign-off, Decided and Left for a handler, in Bright red), which you can click to filter, and the claims with their status, decision and payout. It refreshes every 2 seconds.
 - A claim (`/claims/:claimId`): the agent's decision with its reason and policy section; the payment, or the held payment and a sign-off form; what the agent read, such as "Claims manual, 7. Interpretation notes"; the agent's steps as they arrive, in plain words, such as "Read the claims manual, section 7", and any failure as "Failed: …"; the claim in full; the policy; and the customer's earlier claims. It refreshes every 2 seconds.
 - The instructions (`/instructions`): the agent's instructions, read only, exactly as the agent reads them.
 
@@ -74,7 +80,7 @@ React, Vite and React Router in UnderCover's brand (`dashboard/src/styles.css`),
 
 ### `e2e/`
 
-Playwright tests of the queue, the instructions, a claim in full, the agent's steps arriving, what the agent read, a claim left for a handler and a handler's sign-off. They drive the API the way the agent does and never run a model.
+Playwright tests of the queue, the instructions, a claim in full, the agent's steps arriving, what the agent read, a claim left for a handler, a handler's sign-off and a run's to-do list filling in. `e2e/run.spec.ts` is the only test that starts a run. They drive the API the way the agent does and never run a model.
 
 ### Other
 

@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 
 SCHEMA = """
+DROP TABLE IF EXISTS todos;
+DROP TABLE IF EXISTS runs;
 DROP TABLE IF EXISTS steps;
 DROP TABLE IF EXISTS payments;
 DROP TABLE IF EXISTS sign_offs;
@@ -90,6 +92,23 @@ CREATE TABLE steps (
     name TEXT NOT NULL,
     content TEXT NOT NULL,
     created_at TEXT NOT NULL
+);
+
+CREATE TABLE runs (
+    run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cap INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    summary TEXT
+);
+
+CREATE TABLE todos (
+    run_id INTEGER NOT NULL REFERENCES runs,
+    position INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    status TEXT NOT NULL,
+    PRIMARY KEY (run_id, position)
 );
 """
 

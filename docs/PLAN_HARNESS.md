@@ -183,17 +183,17 @@ Following `AGENTS.md`'s rule against building ahead:
 
 **Success criteria**
 
-- [ ] API: before any run, `GET /api/runs/current` returns null. `POST /api/runs` with cap 5 returns a running run with cap 5 and an empty to-do list, and `GET /api/runs/current` returns it
-- [ ] API: saving three items, and then the same three with item 2 `completed`, gives the three items in order with item 2 done. The status `maybe` gives 422, and so does a cap of 0
-- [ ] API: completed items for an approved claim, a claim waiting for sign-off, a referred claim and a claim left for a handler show done, done, left for a handler and left for a handler. A completed item with no claim id shows done
-- [ ] API: `finish_run` with `finished` and a summary records both and the finish time. Saving to-dos or finishing again gives 409
-- [ ] API: starting a run while an earlier run is running and CLM-1002 is in progress marks the earlier run stopped, and puts CLM-1002 back to waiting with failures 1 and an error step
-- [ ] `uv run -m backend.seed` clears the runs, to-do lists and failures
-- [ ] The OpenAPI test passes for the new operations
-- [ ] vitest: the panel with no run, a running run with its to-do list in each of the four statuses, and a finished run with its summary
-- [ ] Playwright: with the queue page open, the test starts a run, saves a to-do list and ticks items off through the API, the way the harness will. Each change appears without a reload, an item for a claim the test referred shows Left for a handler, and finishing the run shows the summary
-- [ ] Checked in the browser with the Playwright MCP server, light and dark mode: the panel reads clearly beside the counts and the table, the four to-do statuses are easy to tell apart, there are no console errors, and at 390 pixels wide it fits without the page scrolling sideways
-- [ ] `npm run check:python` and `npm run check:ts` pass, with coverage of at least 80%
+- [x] API: before any run, `GET /api/runs/current` returns null. `POST /api/runs` with cap 5 returns a running run with cap 5 and an empty to-do list, and `GET /api/runs/current` returns it
+- [x] API: saving three items, and then the same three with item 2 `completed`, gives the three items in order with item 2 done. The status `maybe` gives 422, and so does a cap of 0
+- [x] API: completed items for an approved claim, a claim waiting for sign-off, a referred claim and a claim left for a handler show done, done, left for a handler and left for a handler. A completed item with no claim id shows done
+- [x] API: `finish_run` with `finished` and a summary records both and the finish time. Saving to-dos or finishing again gives 409
+- [x] API: starting a run while an earlier run is running and CLM-1002 is in progress marks the earlier run stopped, and puts CLM-1002 back to waiting with failures 1 and an error step
+- [x] `uv run -m backend.seed` clears the runs, to-do lists and failures
+- [x] The OpenAPI test passes for the new operations
+- [x] vitest: the panel with no run, a running run with its to-do list in each of the four statuses, and a finished run with its summary
+- [x] Playwright: with the queue page open, the test starts a run, saves a to-do list and ticks items off through the API, the way the harness will. Each change appears without a reload, an item for a claim the test referred shows Left for a handler, and finishing the run shows the summary
+- [x] Checked in the browser with the Playwright MCP server, light and dark mode: the panel reads clearly beside the counts and the table, the four to-do statuses are easy to tell apart, there are no console errors, and at 390 pixels wide it fits without the page scrolling sideways
+- [x] `npm run check:python` and `npm run check:ts` pass, with coverage of at least 80%
 
 ## Phase 4: The queue agent
 

@@ -149,6 +149,25 @@ export interface Instructions {
   instructions: string;
 }
 
+export type RunStatus = "running" | "finished" | "stopped";
+export type TodoStatus = "to_do" | "in_progress" | "done" | "left_for_handler";
+
+export interface Todo {
+  position: number;
+  content: string;
+  status: TodoStatus;
+}
+
+export interface Run {
+  run_id: number;
+  cap: number;
+  status: RunStatus;
+  started_at: string;
+  finished_at: string | null;
+  summary: string | null;
+  todos: Todo[];
+}
+
 /** A path in the API, tagged with the type of its response. */
 export type ApiPath<T> = string & { readonly response?: T };
 
@@ -161,6 +180,7 @@ export const paths = {
   customer: (id: string) => `/api/customers/${id}` as ApiPath<Customer>,
   handlers: "/api/handlers" as ApiPath<Handler[]>,
   instructions: "/api/instructions" as ApiPath<Instructions>,
+  currentRun: "/api/runs/current" as ApiPath<Run | null>,
 };
 
 async function request<T>(apiPath: ApiPath<T>, init?: RequestInit): Promise<T> {

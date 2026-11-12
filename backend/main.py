@@ -1,6 +1,7 @@
 """The UnderCover backend."""
 
 import json
+import re
 import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -18,16 +19,22 @@ from backend.models import (
     Customer,
     DecisionInput,
     FailureInput,
+    FinishInput,
     Handler,
     Instructions,
     PaymentInput,
     Policy,
+    Run,
+    RunInput,
     Section,
     SectionSummary,
+    ShownTodoStatus,
     SignOffInput,
     Status,
     Step,
     StepInput,
+    Todo,
+    TodosInput,
 )
 from backend.seed import seed
 
@@ -43,6 +50,12 @@ STATUS_TEXT: dict[Status, str] = {
     "left_for_handler": "left for a handler",
 }
 TRIES = 2
+CLAIM_ID = re.compile(r"CLM-\d+")
+SHOWN: dict[str, ShownTodoStatus] = {
+    "pending": "to_do",
+    "in_progress": "in_progress",
+    "completed": "done",
+}
 
 QUEUE_SQL = """
 SELECT c.claim_id, cu.name AS customer_name, c.claim_type, c.summary, c.submitted_on,
@@ -349,3 +362,113 @@ def sign_off_claim(claim_id: str, sign_off: SignOffInput, db: Db) -> Claim:
             "UPDATE claims SET status = 'decided' WHERE claim_id = ?", (claim_id,)
         )
     return load_claim(db, claim_id)
+
+
+def shown_status(db: sqlite3.Connection, content: str, status: str) -> ShownTodoStatus:
+    """Show a completed item for a referred or failed claim as left for a handler."""
+    claim_id = CLAIM_ID.search(content)
+    if status != "completed" or claim_id is None:
+        return SHOWN[status]
+    row = one(
+        db,
+        "SELECT c.status, d.decision FROM claims c"
+        " LEFT JOIN decisions d USING (claim_id) WHERE c.claim_id = ?",
+        claim_id.group(),
+    )
+    if row and (row["status"] == "left_for_handler" or row["decision"] == "refer"):
+        return "left_for_handler"
+    return "done"
+
+
+def load_run(db: sqlite3.Connection, run_id: int) -> Run:
+    """Read a run with its to-do list."""
+    row = db.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+    if row is None:
+        raise HTTPException(404, f"Run {run_id} not found")
+    todos = db.execute(
+        "SELECT * FROM todos WHERE run_id = ? ORDER BY position", (run_id,)
+    )
+    return Run.model_validate(
+        {
+            **dict(row),
+            "todos": [
+                Todo(
+                    position=todo["position"],
+                    content=todo["content"],
+                    status=shown_status(db, todo["content"], todo["status"]),
+                )
+                for todo in todos.fetchall()
+            ],
+        }
+    )
+
+
+def running(db: sqlite3.Connection, run_id: int) -> Run:
+    """Read a run, or answer 409 unless it is still running."""
+    run = load_run(db, run_id)
+    if run.status != "running":
+        raise HTTPException(409, f"Run {run_id} is {run.status}")
+    return run
+
+
+@app.post("/api/runs", operation_id="start_run")
+def start_run(run: RunInput, db: Db) -> Run:
+    """Start a run of the queue, stopping any earlier run that never finished."""
+    with db:
+        if db.execute("SELECT 1 FROM runs WHERE status = 'running'").fetchone():
+            db.execute(
+                "UPDATE runs SET status = 'stopped', finished_at = ?, summary = ?"
+                " WHERE status = 'running'",
+                (now(), "The run stopped before it finished."),
+            )
+            stuck = db.execute(
+                "SELECT claim_id FROM claims WHERE status = 'in_progress'"
+            ).fetchall()
+            for row in stuck:
+                record_failure(
+                    db,
+                    load_claim(db, row["claim_id"]),
+                    "",
+                    "The run stopped before this claim was decided",
+                )
+        row = db.execute(
+            "INSERT INTO runs (cap, status, started_at) VALUES (?, 'running', ?)"
+            " RETURNING run_id",
+            (run.cap, now()),
+        ).fetchone()
+    return load_run(db, row["run_id"])
+
+
+@app.get("/api/runs/current", operation_id="get_current_run")
+def get_current_run(db: Db) -> Run | None:
+    """Read the latest run with its to-do list, or nothing before the first run."""
+    row = db.execute("SELECT max(run_id) AS run_id FROM runs").fetchone()
+    return load_run(db, row["run_id"]) if row["run_id"] else None
+
+
+@app.put("/api/runs/{run_id}/todos", operation_id="save_todos")
+def save_todos(run_id: int, todos: TodosInput, db: Db) -> Run:
+    """Save the queue agent's to-do list for a run as it now stands."""
+    running(db, run_id)
+    with db:
+        db.execute("DELETE FROM todos WHERE run_id = ?", (run_id,))
+        db.executemany(
+            "INSERT INTO todos VALUES (?, ?, ?, ?)",
+            [
+                (run_id, position, todo.content, todo.status)
+                for position, todo in enumerate(todos.todos, start=1)
+            ],
+        )
+    return load_run(db, run_id)
+
+
+@app.post("/api/runs/{run_id}/finish", operation_id="finish_run")
+def finish_run(run_id: int, finish: FinishInput, db: Db) -> Run:
+    """Record how a run ended, finished or stopped, and its summary."""
+    running(db, run_id)
+    with db:
+        db.execute(
+            "UPDATE runs SET status = ?, finished_at = ?, summary = ? WHERE run_id = ?",
+            (finish.outcome, now(), finish.summary, run_id),
+        )
+    return load_run(db, run_id)
