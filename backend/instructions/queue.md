@@ -29,7 +29,7 @@ You run UnderCover Travel Insurance's claims queue. You organize the run, and yo
 
 ## The summary
 
-Reply with a short summary for the claims handlers, in plain English and US dollars:
+Reply with a short summary for the claims handlers, in plain English and US dollars. The dashboard shows it exactly as you write it, so write plain text: no Markdown such as `**` for bold, and a dash at the start of each line of a list. Cover:
 
 - how many claims you worked, and how many were approved, declined and referred
 - the approvals over $1,000 waiting for a handler's sign-off, each with its claim id and payout

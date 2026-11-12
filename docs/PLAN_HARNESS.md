@@ -242,12 +242,12 @@ Following `AGENTS.md`'s rule against building ahead:
 
 **Success criteria**
 
-- [ ] After `uv run -m backend.seed`, with `npm run dev` running and the queue page open, `uv run -m agent --cap 5` works five claims on its own. The to-do list appears, fills in and is ticked off while it works, and the summary appears at the end. OpenRouter's activity page shows none of the run's calls served by Wafer
-- [ ] Afterwards the queue shows 20 claims waiting, and none in progress
-- [ ] Each of the five claims' pages shows its steps, including the sections the agent read under "What the agent read", and its decision and reason
-- [ ] Any claim that failed during the run shows its error steps, and is back in the queue or left for a handler
-- [ ] `uv run -m backend.seed` resets the queue to 25 waiting claims and no runs
-- [ ] `docs/SPEC.md`, `docs/TECH_STACK.md` and `docs/STATUS.md` describe the product as it now is
-- [ ] `npm run check` passes in full: ruff, pyright, pytest with at least 80% coverage, ESLint, Prettier, tsc, vitest with at least 80% coverage, and Playwright
+- [x] After `uv run -m backend.seed`, with `npm run dev` running and the queue page open, `uv run -m agent --cap 5` works five claims on its own. The to-do list appears, fills in and is ticked off while it works, and the summary appears at the end. OpenRouter's activity page shows none of the run's calls served by Wafer (the backend and the dashboard ran as separate processes without auto-reload, the same servers `npm run dev` starts; the run went through `agent.__main__.run(["--cap", "5"])`, the code behind `uv run -m agent --cap 5`, from a script that also recorded each call's generation id)
+- [x] Afterwards the queue shows 20 claims waiting, and none in progress
+- [x] Each of the five claims' pages shows its steps, including the sections the agent read under "What the agent read", and its decision and reason (CLM-1011's page checked in the browser, and all five through the API the page reads)
+- [x] Any claim that failed during the run shows its error steps, and is back in the queue or left for a handler (no claim failed in either acceptance run, so this rests on the tests in Phases 2 and 4)
+- [x] `uv run -m backend.seed` resets the queue to 25 waiting claims and no runs
+- [x] `docs/SPEC.md`, `docs/TECH_STACK.md` and `docs/STATUS.md` describe the product as it now is
+- [x] `npm run check` passes in full: ruff, pyright, pytest with at least 80% coverage, ESLint, Prettier, tsc, vitest with at least 80% coverage, and Playwright
 
 A run of the whole queue with `uv run -m agent` is left to you, since it makes 25 claims' worth of model calls on your key. Reseed afterwards to start again.

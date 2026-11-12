@@ -1,6 +1,6 @@
 # Status
 
-The pilot from `docs/PLAN.md` is built: all six phases are done. The harness from `docs/PLAN_HARNESS.md` is being built: Phases 1 to 4 are done.
+The pilot from `docs/PLAN.md` and the harness from `docs/PLAN_HARNESS.md` are built: all six phases of the pilot and all five of the harness are done. The UnderCover Agent now works the whole queue in one run: a queue agent plans the run as a to-do list and hands each claim to a fresh claim agent, which looks up the sections of the policy wording and the claims manual it needs. Failures are put right without stopping the run.
 
 ## How to run it
 
@@ -97,13 +97,22 @@ Playwright tests of the queue, the instructions, a claim in full, the agent's st
 
 ## What we've seen from the agent
 
-- On CLM-1001 the agent approves $420.00 under Section 3, Trip Delay, as the wording gives.
+### In the pilot, on GPT-6 Luna with the whole wording in its prompt
+
+- On CLM-1001 the agent approved $420.00 under Section 3, Trip Delay, as the wording gives.
 - On CLM-1003 it once approved the full $3,800.00 hospital bill, saying no deductible applies to Emergency Medical. On another run it took off the $50 Premium deductible and approved $3,750.00, as section 1 of the wording says. The same claim can come out differently from one run to the next.
 - A run of the whole queue gave 16 approvals (3 of them held for sign-off), 5 declines and 4 referrals, so 21 of 25 went straight through.
-- On CLM-1013 the agent recorded an approval of $64.00 whose own reason said the 7-hour delay fell short of the Economy plan's 12-hour waiting period. It then tried to record a decline, which the backend refused because a decision is final, and its final reply said the claim was declined. The record (approve $64.00, unpaid) is what counts. `uv run -m agent` prints the outcome from the record, not from the reply, and that is how this was caught.
-- The pilot doesn't yet measure the agent's accuracy against the handlers' decisions.
-- The instructions now tell the agent to work its decision out in full before it calls `decide_claim`, the fix for CLM-1013.
-- On GLM 5.3 Flash, CLM-1020 (sunglasses taken by a monkey) was approved for $240.00 and paid. The agent read the contents of both documents, then sections 1 and 5 of the wording and sections 5, 6 and 7 of the manual. Its reason treats the loss as caused by a wild animal, not as theft, as the manual's note says. It skipped some of the sections the instructions say every claim needs (sections 9 to 11 of the wording and sections 2 and 9 of the manual).
-- Two sample calls with the agent's model settings were served on GLM 5.3 Flash by InferenceNet and Reka, not Wafer, with 67 and 0 reasoning tokens. OpenRouter's generation API reports the provider for each call.
-- CLM-1001 through `try_claim` on GLM 5.3 Flash: "CLM-1001: approve $420.00, paid", which matches the record.
-- A run capped at 2 on GLM 5.3 Flash chose the two claims submitted earliest. It approved CLM-1001 ($420.00, paid) and CLM-1008 ($2,240.00, waiting for sign-off), ticked off its three-item to-do list, wrote a summary for the handlers and left 23 claims waiting.
+- On CLM-1013 the agent recorded an approval of $64.00 whose own reason said the 7-hour delay fell short of the Economy plan's 12-hour waiting period. It then tried to record a decline, which the backend refused because a decision is final, and its final reply said the claim was declined. The record (approve $64.00, unpaid) is what counts. The outcome printed from the record, not from the reply, is how this was caught. The claim instructions now tell the agent to work its decision out in full before it calls `decide_claim`.
+
+### With the harness, on GLM 5.3 Flash looking sections up
+
+- CLM-1020 (sunglasses taken by a monkey) was approved for $240.00 and paid. The agent read the contents of both documents, then sections 1 and 5 of the wording and sections 5, 6 and 7 of the manual. Its reason treats the loss as caused by a wild animal, not as theft, as the manual's note says. It skipped some of the sections the instructions say every claim needs (sections 9 to 11 of the wording and sections 2 and 9 of the manual).
+- A run capped at 2 chose the two claims submitted earliest and approved CLM-1001 ($420.00, paid) and CLM-1008 ($2,240.00, waiting for sign-off). It ticked off its to-do list, wrote a summary and left 23 claims waiting.
+- The acceptance run, `uv run -m agent --cap 5` after a reseed, worked five claims on its own in 166 seconds and 60 model calls, with no failures:
+  - CLM-1001 approve $420.00, paid; CLM-1008 approve $2,240.00 and CLM-1011 approve $1,150.00, both waiting for sign-off; CLM-1010 and CLM-1015 declined.
+  - The to-do list appeared on the queue page with the five claims and "Write the summary", and was ticked off one item at a time. The run finished with its summary, and 20 claims stayed waiting, none in progress.
+  - Each claim's page showed what the agent read, from 3 sections (CLM-1015) to 9 (CLM-1008), and its steps.
+  - It mostly chose the claims submitted earliest, but took CLM-1010 (July 2) and CLM-1015 ahead of CLM-1018 (July 1).
+  - Its summary came out in Markdown, which the dashboard shows as written, with `**` marks, so the queue instructions now ask for plain text.
+- A second acceptance run, after a reseed, with the plain-text instruction: the same five claims came out the same way, in 115 seconds and 54 model calls, and the summary was plain text. All 54 calls ran on GLM 5.3 Flash, served by InferenceNet (19), Crusoe (16), Together (9), OpenInference (7), Venice, Parasail and Reka (1 each), and none by Wafer. Reasoning came to at most 270 tokens a call, 21 on average. OpenRouter's generation API reports the provider for each call by its id.
+- The agent's accuracy against the handlers' decisions isn't measured yet.
