@@ -12,6 +12,7 @@ import {
   customer,
   handlers,
   heldClaim,
+  lookupSteps,
   policy,
   signedOffClaim,
   steps,
@@ -85,6 +86,36 @@ it("says when the agent is working", async () => {
   expect(
     await screen.findByText("The agent is working on this claim."),
   ).toBeDefined();
+});
+
+it("says when a claim is left for a handler, and what went wrong", async () => {
+  const failure = {
+    step_id: 1,
+    claim_id: "CLM-1001",
+    thread_id: "thread-1",
+    kind: "error",
+    name: "",
+    content: "RuntimeError: The model provider is busy",
+    created_at: "2026-11-09T22:36:00+00:00",
+  };
+  stubApi({
+    ...records,
+    "GET /api/claims/CLM-1001": {
+      ...claim,
+      status: "left_for_handler",
+      failures: 2,
+    },
+    "GET /api/claims/CLM-1001/steps": [failure, { ...failure, step_id: 2 }],
+  });
+  renderAt("/claims/CLM-1001");
+  expect(
+    await screen.findByText(
+      /failed on this claim twice, so it's left for a handler/,
+    ),
+  ).toBeDefined();
+  expect(
+    screen.getAllByText("Failed: RuntimeError: The model provider is busy"),
+  ).toHaveLength(2);
 });
 
 it("shows the decision and the payment", async () => {
@@ -163,6 +194,56 @@ it("shows the agent's steps in plain words", async () => {
     list.getByText("Approved $1,500.00; waiting for sign-off."),
   ).toBeDefined();
   expect(list.getAllByText(/"claim_id": "CLM-1001"/)).toHaveLength(2);
+});
+
+it("names the document and the section in each lookup", async () => {
+  stubApi({
+    ...records,
+    "GET /api/claims/CLM-1001": claim,
+    "GET /api/claims/CLM-1001/steps": lookupSteps,
+  });
+  renderAt("/claims/CLM-1001");
+  const list = within(await screen.findByRole("list", { name: "Steps" }));
+  expect(
+    list.getByText("Looked up the contents of the claims manual"),
+  ).toBeDefined();
+  expect(list.getByText("Result: Looked up the contents")).toBeDefined();
+  expect(list.getAllByText("Read the claims manual, section 7")).toHaveLength(
+    2,
+  );
+  expect(list.getByText("Read the policy wording, section 5")).toBeDefined();
+  expect(list.getAllByText("Result: Read a section")).toHaveLength(3);
+});
+
+it("lists what the agent read, once each, in order", async () => {
+  stubApi({
+    ...records,
+    "GET /api/claims/CLM-1001": claim,
+    "GET /api/claims/CLM-1001/steps": lookupSteps,
+  });
+  renderAt("/claims/CLM-1001");
+  const read = within(
+    await screen.findByRole("list", { name: "Sections read" }),
+  );
+  expect(read.getAllByRole("listitem").map((item) => item.textContent)).toEqual(
+    [
+      "Claims manual, 7. Interpretation notes",
+      "Policy wording, 5. Baggage and Personal Effects",
+    ],
+  );
+});
+
+it("says when the agent hasn't read anything yet", async () => {
+  stubApi({
+    ...records,
+    "GET /api/claims/CLM-1001": claim,
+    "GET /api/claims/CLM-1001/steps": [],
+  });
+  renderAt("/claims/CLM-1001");
+  const read = within(
+    await screen.findByRole("region", { name: "What the agent read" }),
+  );
+  expect(read.getByText("Nothing yet.")).toBeDefined();
 });
 
 it("lets a handler sign off a held payment", async () => {

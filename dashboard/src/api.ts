@@ -1,27 +1,15 @@
-export type Status =
-  "waiting" | "in_progress" | "awaiting_sign_off" | "decided";
-export type DecisionKind = "approve" | "decline" | "refer";
-export type StepKind = "tool_call" | "tool_result" | "reply";
+/** The backend's API: the shapes it returns, its paths, and calls to it. */
 
-export const STATUSES: Status[] = [
+export const STATUSES = [
   "waiting",
   "in_progress",
   "awaiting_sign_off",
   "decided",
-];
-
-export const STATUS_LABELS: Record<Status, string> = {
-  waiting: "Waiting",
-  in_progress: "In progress",
-  awaiting_sign_off: "Waiting for sign-off",
-  decided: "Decided",
-};
-
-export const DECISION_LABELS: Record<DecisionKind, string> = {
-  approve: "Approve",
-  decline: "Decline",
-  refer: "Refer",
-};
+  "left_for_handler",
+] as const;
+export type Status = (typeof STATUSES)[number];
+export type DecisionKind = "approve" | "decline" | "refer";
+export type StepKind = "tool_call" | "tool_result" | "reply" | "error";
 
 export interface ClaimSummary {
   claim_id: string;
@@ -31,6 +19,7 @@ export interface ClaimSummary {
   submitted_on: string;
   amount_claimed: number;
   status: Status;
+  failures: number;
   decision: DecisionKind | null;
   payout: number | null;
 }
@@ -81,6 +70,7 @@ export interface Claim {
   amount_claimed: number;
   documents: ClaimDocument[];
   status: Status;
+  failures: number;
   decision: Decision | null;
   sign_off: SignOff | null;
   payment: Payment | null;
@@ -138,7 +128,27 @@ export interface Step {
 }
 
 export interface Instructions {
-  instructions: string;
+  queue: string;
+  claim: string;
+}
+
+export type RunStatus = "running" | "finished" | "stopped";
+export type TodoStatus = "pending" | "in_progress" | "completed";
+
+export interface Todo {
+  position: number;
+  content: string;
+  status: TodoStatus;
+}
+
+export interface Run {
+  run_id: number;
+  cap: number;
+  status: RunStatus;
+  started_at: string;
+  finished_at: string | null;
+  summary: string | null;
+  todos: Todo[];
 }
 
 /** A path in the API, tagged with the type of its response. */
@@ -153,6 +163,7 @@ export const paths = {
   customer: (id: string) => `/api/customers/${id}` as ApiPath<Customer>,
   handlers: "/api/handlers" as ApiPath<Handler[]>,
   instructions: "/api/instructions" as ApiPath<Instructions>,
+  currentRun: "/api/runs/current" as ApiPath<Run | null>,
 };
 
 async function request<T>(apiPath: ApiPath<T>, init?: RequestInit): Promise<T> {

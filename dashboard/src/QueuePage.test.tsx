@@ -52,6 +52,27 @@ it("counts the claims in each state", async () => {
     screen.getByRole("button", { name: "Waiting for sign-off 1" }),
   ).toBeDefined();
   expect(screen.getByRole("button", { name: "Decided 0" })).toBeDefined();
+  expect(
+    screen.getByRole("button", { name: "Left for a handler 0" }),
+  ).toBeDefined();
+});
+
+it("shows the claims left for a handler", async () => {
+  const left = {
+    ...queue[0],
+    claim_id: "CLM-1008",
+    status: "left_for_handler",
+    failures: 2,
+  };
+  stubApi({ "GET /api/claims": [...queue, left] });
+  renderAt("/");
+  const count = await screen.findByRole("button", {
+    name: "Left for a handler 1",
+  });
+  expect(within(rows()[3]).getByText("Left for a handler")).toBeDefined();
+  fireEvent.click(count);
+  expect(rows()).toHaveLength(1);
+  expect(screen.getByRole("link", { name: "CLM-1008" })).toBeDefined();
 });
 
 it("shows only the claims in a state when you click its count", async () => {

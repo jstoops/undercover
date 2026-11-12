@@ -1,44 +1,32 @@
-"""Work the claims queue: uv run -m agent, or uv run -m agent CLM-1001 for one claim."""
+"""Work the claims queue.
 
-import sys
-import uuid
-from typing import Any
+uv run -m agent works every waiting claim, uv run -m agent --cap 5 works up to
+five, and uv run -m agent CLM-1001 works one claim.
+"""
 
-from agent import main
+import argparse
 
+from dotenv import load_dotenv
 
-def waiting_claims() -> list[str]:
-    """Return the ids of the claims waiting in the queue, in order."""
-    with main.backend() as client:
-        claims = client.get("/api/claims").raise_for_status().json()
-    return [claim["claim_id"] for claim in claims if claim["status"] == "waiting"]
+from agent import api, harness
 
 
-def outcome(claim: dict[str, Any]) -> str:
-    """Say in one line where a claim stands."""
-    decision = claim["decision"]
-    if decision is None:
-        return f"{claim['claim_id']}: no decision yet"
-    if decision["decision"] != "approve":
-        return f"{claim['claim_id']}: {decision['decision']}"
-    if claim["payment"]:
-        state = "paid"
-    elif claim["status"] == "awaiting_sign_off":
-        state = "waiting for sign-off"
-    else:
-        state = "not paid"
-    return f"{claim['claim_id']}: approve ${decision['payout']:,.2f}, {state}"
-
-
-def work_queue(claim_ids: list[str]) -> None:
-    """Run the agent on the claims given, or on every waiting claim."""
-    for claim_id in claim_ids or waiting_claims():
-        reply = main.run(claim_id, str(uuid.uuid4()))
-        with main.backend() as client:
-            claim = client.get(f"/api/claims/{claim_id}").raise_for_status().json()
-        print(outcome(claim))
-        print(f"  {reply}")
+def run(argv: list[str] | None = None) -> None:
+    """Run the queue agent on the queue, or a claim agent on one claim."""
+    parser = argparse.ArgumentParser(prog="uv run -m agent")
+    parser.add_argument("claim_id", nargs="?", help="work just this claim")
+    parser.add_argument("--cap", type=int, help="work at most this many claims")
+    args = parser.parse_args(argv)
+    if args.claim_id:
+        print(harness.work_claim(args.claim_id, harness.model()))
+        return
+    cap = args.cap or len(api.waiting_claims())
+    if cap == 0:
+        print("No claims are waiting.")
+        return
+    print(harness.run_queue(cap, harness.model()))
 
 
 if __name__ == "__main__":
-    work_queue(sys.argv[1:])
+    load_dotenv(override=True)
+    run()

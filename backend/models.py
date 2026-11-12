@@ -4,9 +4,13 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 
-Status = Literal["waiting", "in_progress", "awaiting_sign_off", "decided"]
+Status = Literal[
+    "waiting", "in_progress", "awaiting_sign_off", "decided", "left_for_handler"
+]
 DecisionKind = Literal["approve", "decline", "refer"]
-StepKind = Literal["tool_call", "tool_result", "reply"]
+StepKind = Literal["tool_call", "tool_result", "reply", "error"]
+RunStatus = Literal["running", "finished", "stopped"]
+TodoStatus = Literal["pending", "in_progress", "completed"]
 
 
 class DecisionInput(BaseModel):
@@ -32,6 +36,11 @@ class SignOffInput(BaseModel):
     handler_id: str
 
 
+class FailureInput(BaseModel):
+    thread_id: str
+    reason: str = Field(min_length=1)
+
+
 class StepInput(BaseModel):
     thread_id: str
     kind: StepKind
@@ -46,7 +55,8 @@ class Step(StepInput):
 
 
 class Instructions(BaseModel):
-    instructions: str
+    queue: str
+    claim: str
 
 
 class Item(BaseModel):
@@ -55,7 +65,7 @@ class Item(BaseModel):
     amount: float
 
 
-class Document(BaseModel):
+class ClaimDocument(BaseModel):
     name: str
     type: str
     content: str
@@ -88,6 +98,7 @@ class ClaimSummary(BaseModel):
     submitted_on: str
     amount_claimed: float
     status: Status
+    failures: int
     decision: DecisionKind | None
     payout: float | None
 
@@ -105,8 +116,9 @@ class Claim(BaseModel):
     story: str
     items: list[Item]
     amount_claimed: float
-    documents: list[Document]
+    documents: list[ClaimDocument]
     status: Status
+    failures: int
     decision: Decision | None
     sign_off: SignOff | None
     payment: Payment | None
@@ -155,5 +167,48 @@ class Handler(BaseModel):
     can_approve_over_limit: bool
 
 
-class PolicyWording(BaseModel):
-    policy_wording: str
+class RunInput(BaseModel):
+    cap: int = Field(ge=1)
+
+
+class TodoInput(BaseModel):
+    content: str
+    status: TodoStatus
+
+
+class TodosInput(BaseModel):
+    todos: list[TodoInput]
+
+
+class FinishInput(BaseModel):
+    outcome: Literal["finished", "stopped"]
+    summary: str
+
+
+class Todo(BaseModel):
+    position: int
+    content: str
+    status: TodoStatus
+
+
+class Run(BaseModel):
+    run_id: int
+    cap: int
+    status: RunStatus
+    started_at: str
+    finished_at: str | None
+    summary: str | None
+    todos: list[Todo]
+
+
+class SectionSummary(BaseModel):
+    number: int
+    title: str
+    topics: list[str]
+
+
+class Section(BaseModel):
+    document: str
+    number: int
+    title: str
+    text: str

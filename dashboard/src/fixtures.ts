@@ -37,6 +37,7 @@ export const claim: Claim = {
     { name: "Hotel receipt", type: "receipt", content: "Total paid: $245.00." },
   ],
   status: "waiting",
+  failures: 0,
   decision: null,
   sign_off: null,
   payment: null,
@@ -164,6 +165,50 @@ export const steps: Step[] = [
   step(10, "reply", "", "Approved $1,500.00; waiting for sign-off."),
 ];
 
+const notes = JSON.stringify({
+  document: "claims-manual",
+  number: 7,
+  title: "Interpretation notes",
+  text: "**Wild animals.** A loss caused by a wild animal...",
+});
+
+export const lookupSteps: Step[] = [
+  step(1, "tool_call", "list_sections", '{"document": "claims-manual"}'),
+  step(2, "tool_result", "list_sections", "[]"),
+  step(
+    3,
+    "tool_call",
+    "read_section",
+    '{"document": "claims-manual", "number": 7}',
+  ),
+  step(4, "tool_result", "read_section", notes),
+  step(
+    5,
+    "tool_call",
+    "read_section",
+    '{"document": "policy-wording", "number": 5}',
+  ),
+  step(
+    6,
+    "tool_result",
+    "read_section",
+    JSON.stringify({
+      document: "policy-wording",
+      number: 5,
+      title: "Baggage and Personal Effects",
+      text: "We pay for loss, theft or accidental damage...",
+    }),
+  ),
+  step(
+    7,
+    "tool_call",
+    "read_section",
+    '{"document": "claims-manual", "number": 7}',
+  ),
+  step(8, "tool_result", "read_section", notes),
+  step(9, "tool_result", "read_section", '{"detail": "Section 15 not found"}'),
+];
+
 export const queue: ClaimSummary[] = [
   {
     claim_id: "CLM-1001",
@@ -173,6 +218,7 @@ export const queue: ClaimSummary[] = [
     submitted_on: "2026-06-24",
     amount_claimed: 420,
     status: "waiting",
+    failures: 0,
     decision: null,
     payout: null,
   },
@@ -184,6 +230,7 @@ export const queue: ClaimSummary[] = [
     submitted_on: "2026-07-20",
     amount_claimed: 1150,
     status: "in_progress",
+    failures: 0,
     decision: null,
     payout: null,
   },
@@ -195,6 +242,7 @@ export const queue: ClaimSummary[] = [
     submitted_on: "2026-07-08",
     amount_claimed: 3800,
     status: "awaiting_sign_off",
+    failures: 0,
     decision: "approve",
     payout: 3750,
   },

@@ -9,16 +9,23 @@ interface Props {
   onSignedOff: () => void;
 }
 
+const UNDECIDED: Partial<Record<Claim["status"], string>> = {
+  in_progress: "The agent is working on this claim.",
+  left_for_handler:
+    "The agent failed on this claim twice, so it's left for a handler. Its steps say what went wrong.",
+};
+
 export function DecisionPanel({ claim, onSignedOff }: Readonly<Props>) {
   const { decision } = claim;
   return (
     <section className="panel" aria-labelledby="decision-heading">
       <h2 id="decision-heading">The agent's decision</h2>
       {decision === null ? (
-        <p>
-          {claim.status === "in_progress"
-            ? "The agent is working on this claim."
-            : "The agent hasn't decided this claim yet."}
+        <p
+          className={claim.status === "left_for_handler" ? "alert" : undefined}
+        >
+          {UNDECIDED[claim.status] ??
+            "The agent hasn't decided this claim yet."}
         </p>
       ) : (
         <>

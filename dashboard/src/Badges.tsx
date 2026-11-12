@@ -1,9 +1,5 @@
-import {
-  DECISION_LABELS,
-  STATUS_LABELS,
-  type DecisionKind,
-  type Status,
-} from "./api";
+import type { DecisionKind, Status } from "./api";
+import { DECISION_LABELS, STATUS_LABELS } from "./labels";
 
 export function StatusBadge({ status }: Readonly<{ status: Status }>) {
   return (

@@ -1,4 +1,4 @@
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderAt, stubApi } from "./testing";
 
@@ -7,18 +7,26 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("shows the instructions, read only", async () => {
+it("shows both sets of instructions, read only", async () => {
   stubApi({
     "GET /api/instructions": {
-      instructions: "# The UnderCover Agent\n\nDecide each claim.",
+      queue: "# Running the queue\n\nHand each claim to work_claim.",
+      claim: "# Working a claim\n\nDecide the claim.",
     },
   });
   renderAt("/instructions");
   expect(
     screen.getByRole("heading", { name: "The agent's instructions" }),
   ).toBeDefined();
-  expect((await screen.findByText(/Decide each claim/)).textContent).toBe(
-    "# The UnderCover Agent\n\nDecide each claim.",
+  const queue = within(
+    await screen.findByRole("region", { name: "Running the queue" }),
+  );
+  expect(queue.getByText(/Hand each claim/).textContent).toBe(
+    "# Running the queue\n\nHand each claim to work_claim.",
+  );
+  const claim = within(screen.getByRole("region", { name: "Working a claim" }));
+  expect(claim.getByText(/Decide the claim/).textContent).toBe(
+    "# Working a claim\n\nDecide the claim.",
   );
   expect(screen.queryByRole("textbox")).toBeNull();
 });

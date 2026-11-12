@@ -30,12 +30,19 @@ def test_seed_resets_the_database(tmp_path):
     path = tmp_path / "undercover.db"
     seed.seed(path)
     with closing(sqlite3.connect(path)) as db:
-        db.execute("UPDATE claims SET status = 'decided'")
+        db.execute("UPDATE claims SET status = 'decided', failures = 1")
+        db.execute("INSERT INTO runs (cap, status, started_at) VALUES (5, 'x', 'y')")
+        db.execute("INSERT INTO todos VALUES (1, 1, 'CLM-1001', 'pending')")
         db.commit()
     seed.seed(path)
     with closing(sqlite3.connect(path)) as db:
         statuses = {row[0] for row in db.execute("SELECT status FROM claims")}
+        failures = {row[0] for row in db.execute("SELECT failures FROM claims")}
+        runs = db.execute("SELECT count(*) FROM runs").fetchone()[0]
+        todos = db.execute("SELECT count(*) FROM todos").fetchone()[0]
     assert statuses == {"waiting"}
+    assert failures == {0}
+    assert (runs, todos) == (0, 0)
 
 
 def test_main_reports_what_it_loaded(tmp_path, monkeypatch, capsys):

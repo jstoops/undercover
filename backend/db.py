@@ -3,12 +3,18 @@
 import os
 import sqlite3
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Annotated, Any
+
+from fastapi import Depends, HTTPException
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 
 SCHEMA = """
+DROP TABLE IF EXISTS todos;
+DROP TABLE IF EXISTS runs;
 DROP TABLE IF EXISTS steps;
 DROP TABLE IF EXISTS payments;
 DROP TABLE IF EXISTS sign_offs;
@@ -50,7 +56,8 @@ CREATE TABLE claims (
     items TEXT NOT NULL,
     amount_claimed REAL NOT NULL,
     documents TEXT NOT NULL,
-    status TEXT NOT NULL
+    status TEXT NOT NULL,
+    failures INTEGER NOT NULL
 );
 
 CREATE TABLE handlers (
@@ -90,6 +97,23 @@ CREATE TABLE steps (
     content TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+
+CREATE TABLE runs (
+    run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cap INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    summary TEXT
+);
+
+CREATE TABLE todos (
+    run_id INTEGER NOT NULL REFERENCES runs,
+    position INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    status TEXT NOT NULL,
+    PRIMARY KEY (run_id, position)
+);
 """
 
 
@@ -112,3 +136,27 @@ def get_db() -> Iterator[sqlite3.Connection]:
         yield connection
     finally:
         connection.close()
+
+
+Db = Annotated[sqlite3.Connection, Depends(get_db)]
+
+
+def one(db: sqlite3.Connection, sql: str, key: str | int) -> dict[str, Any] | None:
+    """Return the single row that matches, or None."""
+    row = db.execute(sql, (key,)).fetchone()
+    return dict(row) if row else None
+
+
+def found(
+    db: sqlite3.Connection, sql: str, key: str | int, what: str
+) -> dict[str, Any]:
+    """Return the single row that matches, or answer 404."""
+    row = one(db, sql, key)
+    if row is None:
+        raise HTTPException(404, f"{what} {key} not found")
+    return row
+
+
+def now() -> str:
+    """Return the time now, in UTC."""
+    return datetime.now(UTC).isoformat(timespec="seconds")

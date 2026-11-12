@@ -1,34 +1,29 @@
 import type { Step } from "./api";
 import { time } from "./format";
-
-const TOOL_LABELS: Partial<Record<string, string>> = {
-  get_claim: "Read the claim",
-  get_policy: "Read the policy",
-  get_customer: "Read the customer's claim history",
-  decide_claim: "Recorded the decision",
-  pay_claim: "Asked to pay",
-};
-
-function parse(content: string): unknown {
-  try {
-    return JSON.parse(content);
-  } catch {
-    return content;
-  }
-}
+import { TOOL_LABELS } from "./labels";
+import { documentName, field, parse } from "./steps";
 
 function refusal(value: unknown): string | null {
-  return typeof value === "object" &&
-    value !== null &&
-    "detail" in value &&
-    typeof value.detail === "string"
-    ? value.detail
-    : null;
+  const detail = field(value, "detail");
+  return typeof detail === "string" ? detail : null;
+}
+
+/** A tool call in plain words, naming the document for a lookup. */
+function callLabel(step: Step, value: unknown): string {
+  const document = documentName(field(value, "document")).toLowerCase();
+  if (step.name === "list_sections")
+    return `Looked up the contents of the ${document}`;
+  if (step.name === "read_section")
+    return `Read the ${document}, section ${String(field(value, "number"))}`;
+  return TOOL_LABELS[step.name] ?? step.name;
 }
 
 function StepItem({ step }: Readonly<{ step: Step }>) {
-  const label = TOOL_LABELS[step.name] ?? step.name;
   const value = parse(step.content);
+  const label =
+    step.kind === "tool_call"
+      ? callLabel(step, value)
+      : (TOOL_LABELS[step.name] ?? step.name);
   const shown =
     typeof value === "string" ? value : JSON.stringify(value, null, 2);
   const refused = step.kind === "tool_result" ? refusal(value) : null;
@@ -36,12 +31,16 @@ function StepItem({ step }: Readonly<{ step: Step }>) {
   return (
     <li className={`step step-${step.kind}`}>
       <span className="step-time mono">{time(step.created_at)}</span>
-      {step.kind === "reply" ? (
+      {step.kind === "reply" && (
         <div>
           <span className="step-label">The agent said</span>
           <p className="step-reply">{step.content}</p>
         </div>
-      ) : (
+      )}
+      {step.kind === "error" && (
+        <p className="step-error">Failed: {step.content}</p>
+      )}
+      {(step.kind === "tool_call" || step.kind === "tool_result") && (
         <details>
           <summary className={refused ? "step-refused" : undefined}>
             {step.kind === "tool_call" && label}

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { failClaim, startClaim } from "./api";
 
 // Other tests change some claims at the same time, so these check the queue's
 // shape rather than how many claims are in each state.
@@ -12,7 +13,7 @@ test("the queue shows every claim", async ({ page }) => {
   const counts = page
     .getByRole("group", { name: "Claims by status" })
     .locator(".count-number");
-  await expect(counts).toHaveCount(4);
+  await expect(counts).toHaveCount(5);
   const total = (await counts.allTextContents()).reduce(
     (sum, count) => sum + Number(count),
     0,
@@ -30,6 +31,29 @@ test("a claim opens from the queue", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "CLM-1001" })).toBeVisible();
 });
 
+test("a claim that fails twice is left for a handler", async ({
+  page,
+  request,
+}) => {
+  for (const reason of ["The model provider timed out", "No decision"]) {
+    await startClaim(request, "CLM-1008");
+    await failClaim(request, "CLM-1008", reason);
+  }
+  await page.goto("/");
+  await expect(page.getByRole("row", { name: /CLM-1008/ })).toContainText(
+    "Left for a handler",
+  );
+  await page.getByRole("link", { name: "CLM-1008" }).click();
+  const steps = page.getByRole("list", { name: "Steps" }).getByRole("listitem");
+  await expect(steps).toHaveText([
+    /Failed: The model provider timed out/,
+    /Failed: No decision/,
+  ]);
+  await expect(
+    page.getByRole("region", { name: "The agent's decision" }),
+  ).toContainText("left for a handler");
+});
+
 test("the queue shows a claim in progress without a reload", async ({
   page,
   request,
@@ -37,7 +61,6 @@ test("the queue shows a claim in progress without a reload", async ({
   await page.goto("/");
   const row = page.getByRole("row", { name: /CLM-1004/ });
   await expect(row).toContainText("Waiting");
-  const started = await request.post("/api/claims/CLM-1004/start");
-  expect(started.ok()).toBe(true);
+  await startClaim(request, "CLM-1004");
   await expect(row).toContainText("In progress");
 });

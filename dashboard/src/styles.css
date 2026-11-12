@@ -33,6 +33,9 @@
   --decided: var(--very-dark-grayish-blue);
   --decided-bg: #e0e1e2;
   --decided-ink: #343a40;
+  --handler: var(--bright-red);
+  --handler-bg: #fbe5e7;
+  --handler-ink: #a71d2a;
 
   --font-body: "Saira Extra Condensed", system-ui, sans-serif;
   --font-accent: "Roboto", system-ui, sans-serif;
@@ -63,6 +66,8 @@
     --decided: #ced4da;
     --decided-bg: #495057;
     --decided-ink: #e9ecef;
+    --handler-bg: #3b0d12;
+    --handler-ink: #f3a3ab;
   }
 }
 
@@ -357,6 +362,12 @@ td .mono {
   --badge-ink: var(--decided-ink);
 }
 
+.status-left_for_handler {
+  --badge-dot: var(--handler);
+  --badge-bg: var(--handler-bg);
+  --badge-ink: var(--handler-ink);
+}
+
 .decision-approve {
   --badge-dot: var(--smoke-tree);
   --badge-bg: var(--sign-off-bg);
@@ -431,6 +442,84 @@ td .mono {
   font-size: 2.25rem;
   font-weight: 700;
   line-height: 1.2;
+}
+
+/* The current run and its to-do list. */
+
+.run-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.run-header h2 {
+  margin: 0;
+}
+
+.run-meta {
+  color: var(--ink-soft);
+}
+
+.todos {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.todo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  padding: 0.35rem 0;
+}
+
+.todo + .todo {
+  border-top: 1px solid var(--rule);
+}
+
+.todo .badge {
+  flex-shrink: 0;
+  min-width: 7.5rem;
+}
+
+.todo-pending {
+  --badge-dot: var(--waiting);
+  --badge-bg: var(--waiting-bg);
+  --badge-ink: var(--waiting-ink);
+}
+
+.todo-in_progress,
+.run-running {
+  --badge-dot: var(--in-progress);
+  --badge-bg: var(--in-progress-bg);
+  --badge-ink: var(--in-progress-ink);
+}
+
+.todo-completed,
+.run-finished {
+  --badge-dot: var(--decided);
+  --badge-bg: var(--decided-bg);
+  --badge-ink: var(--decided-ink);
+}
+
+.run-stopped {
+  --badge-dot: var(--handler);
+  --badge-bg: var(--handler-bg);
+  --badge-ink: var(--handler-ink);
+}
+
+.run-summary h3 {
+  margin-top: 0;
+}
+
+.run-summary p {
+  margin: 0;
+  font-family: var(--font-accent);
+  font-size: 1rem;
+  white-space: pre-wrap;
 }
 
 /* The instructions, shown exactly as the agent reads them. */
@@ -638,6 +727,26 @@ tfoot th {
   margin: 0;
 }
 
+/* What the agent read. */
+
+.sections-read {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sections-read li {
+  padding: 0.3rem 0;
+}
+
+.sections-read li + li {
+  border-top: 1px solid var(--rule);
+}
+
+.sections-read .mono {
+  font-size: 1rem;
+}
+
 /* The agent's steps. */
 
 .steps {
@@ -696,6 +805,12 @@ tfoot th {
 
 .step-label {
   color: var(--ink-strong);
+  font-weight: 600;
+}
+
+.step-error {
+  margin: 0;
+  color: var(--alert-ink);
   font-weight: 600;
 }
 

@@ -4,6 +4,7 @@ import { StatusBadge } from "./Badges";
 import { ClaimDetails, CustomerPanel, PolicyPanel } from "./ClaimDetails";
 import { DecisionPanel } from "./DecisionPanel";
 import { humanize } from "./format";
+import { SectionsRead } from "./SectionsRead";
 import { StepList } from "./StepList";
 import { useApi } from "./useApi";
 
@@ -43,6 +44,7 @@ export function ClaimPage() {
           <div className="claim-grid">
             <div className="claim-side">
               <DecisionPanel claim={claim} onSignedOff={reload} />
+              <SectionsRead steps={steps ?? []} />
               <StepList steps={steps ?? []} />
             </div>
             <div className="claim-main">

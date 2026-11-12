@@ -1,23 +1,5 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
-
-// These tests drive the API the way the agent does; they never run a model.
-
-async function decide(
-  request: APIRequestContext,
-  claimId: string,
-  decision: string,
-  payout: number,
-) {
-  const response = await request.post(`/api/claims/${claimId}/decision`, {
-    data: {
-      decision,
-      payout,
-      reason: "The wording covers the claim. The receipts support the amount.",
-      policy_section: "Section 5, Baggage and Personal Effects",
-    },
-  });
-  expect(response.ok()).toBe(true);
-}
+import { expect, test } from "@playwright/test";
+import { addStep, decide, pay, readSection, startClaim } from "./api";
 
 test("a claim's page shows it in full", async ({ page }) => {
   await page.goto("/claims/CLM-1002");
@@ -39,7 +21,7 @@ test("a claim's page shows it in full", async ({ page }) => {
 test("the agent's steps appear as it works", async ({ page, request }) => {
   await page.goto("/claims/CLM-1005");
   await expect(page.getByText("No steps yet.")).toBeVisible();
-  await request.post("/api/claims/CLM-1005/start");
+  await startClaim(request, "CLM-1005");
   await expect(
     page.getByText("The agent is working on this claim."),
   ).toBeVisible();
@@ -61,9 +43,7 @@ test("the agent's steps appear as it works", async ({ page, request }) => {
     },
   ];
   for (const step of steps) {
-    await request.post("/api/claims/CLM-1005/steps", {
-      data: { thread_id: "e2e", ...step },
-    });
+    await addStep(request, "CLM-1005", step);
   }
   const items = page.getByRole("list", { name: "Steps" }).getByRole("listitem");
   await expect(items).toHaveCount(3);
@@ -76,12 +56,36 @@ test("the agent's steps appear as it works", async ({ page, request }) => {
   await expect(decision).toContainText("The receipts support the amount.");
 });
 
+test("the claim page shows what the agent read", async ({ page, request }) => {
+  await page.goto("/claims/CLM-1006");
+  const read = page.getByRole("region", { name: "What the agent read" });
+  await expect(read).toContainText("Nothing yet.");
+  for (const step of [
+    {
+      kind: "tool_call",
+      name: "read_section",
+      content: '{"document": "claims-manual", "number": 7}',
+    },
+    {
+      kind: "tool_result",
+      name: "read_section",
+      content: await readSection(request, "claims-manual", 7),
+    },
+  ]) {
+    await addStep(request, "CLM-1006", step);
+  }
+  await expect(read.getByRole("listitem")).toHaveText([
+    "Claims manual, 7. Interpretation notes",
+  ]);
+  await expect(
+    page.getByRole("list", { name: "Steps" }).getByRole("listitem").first(),
+  ).toContainText("Read the claims manual, section 7");
+});
+
 test("a handler signs off a held payment", async ({ page, request }) => {
-  await request.post("/api/claims/CLM-1012/start");
+  await startClaim(request, "CLM-1012");
   await decide(request, "CLM-1012", "approve", 1500);
-  const payment = await request.post("/api/claims/CLM-1012/payment", {
-    data: { amount: 1500 },
-  });
+  const payment = await pay(request, "CLM-1012", 1500);
   expect(payment.status()).toBe(403);
 
   await page.goto("/claims/CLM-1012");

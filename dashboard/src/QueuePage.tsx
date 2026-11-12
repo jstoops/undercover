@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { STATUSES, STATUS_LABELS, paths, type Status } from "./api";
+import { STATUSES, paths, type Status } from "./api";
 import { DecisionBadge, StatusBadge } from "./Badges";
 import { date, humanize, money } from "./format";
+import { STATUS_LABELS } from "./labels";
+import { RunPanel } from "./RunPanel";
 import { useApi } from "./useApi";
 
 export function QueuePage() {
@@ -20,6 +22,7 @@ export function QueuePage() {
           The queue could not be loaded: {error}
         </p>
       )}
+      <RunPanel />
       <div className="counts" role="group" aria-label="Claims by status">
         {STATUSES.map((status) => (
           <button
