@@ -1,12 +1,12 @@
 # Status
 
-The pilot from `docs/PLAN.md` is built: all six phases are done. The harness from `docs/PLAN_HARNESS.md` is being built: Phase 1 is done.
+The pilot from `docs/PLAN.md` is built: all six phases are done. The harness from `docs/PLAN_HARNESS.md` is being built: Phases 1 and 2 are done.
 
 ## How to run it
 
 - `uv sync` and `npm install` install everything.
 - `npm run dev` starts the backend on port 8000 and the dashboard at http://localhost:5173. On first start the backend creates and seeds `undercover.db`.
-- `uv run -m agent` works every waiting claim in the queue, one after another. `uv run -m agent CLM-1001` works one claim. The backend must be running. Each claim makes several model calls on your OpenRouter key: `z-ai/glm-5.3-flash` at low reasoning effort, or the model in `MODEL_NAME`.
+- `uv run -m agent` works every waiting claim in the queue, one after another, and prints a line for each, such as "CLM-1001: approve $420.00, paid". `uv run -m agent CLM-1001` works one claim. The backend must be running. Each claim makes several model calls on your OpenRouter key: `z-ai/glm-5.3-flash` at low reasoning effort, or the model in `MODEL_NAME`.
 - `OPENROUTER_IGNORE` in `.env` lists the OpenRouter providers to skip, separated by commas. It defaults to `wafer`, which ignored GLM 5.3 Flash's low reasoning setting in the Week 1 Day 4 lab. Set it to nothing to skip none.
 - `uv run -m backend.seed` resets the queue: every claim goes back to waiting, with no decisions, payments or steps. A decided claim is final, so run this before working the queue again.
 - `npm run check` runs every check, including the Playwright tests, which start their own backend (port 8001) and dashboard (port 5174) on a fresh database, so they never touch the queue in `npm run dev`.
@@ -33,13 +33,15 @@ Every operation has an `operation_id`, a one-line docstring and no optional inpu
 | `start_claim` | `POST /api/claims/{claim_id}/start` |
 | `add_step` | `POST /api/claims/{claim_id}/steps` |
 | `list_steps` | `GET /api/claims/{claim_id}/steps` |
+| `fail_claim` | `POST /api/claims/{claim_id}/failure` |
 | `decide_claim` | `POST /api/claims/{claim_id}/decision` |
 | `pay_claim` | `POST /api/claims/{claim_id}/payment` |
 | `sign_off_claim` | `POST /api/claims/{claim_id}/sign-off` |
 
 The rules the backend enforces:
 
-- A claim goes from `waiting` to `in_progress` (`start_claim`), then to `decided`, or to `awaiting_sign_off` for an approval over $1,000. A decided claim is final.
+- A claim goes from `waiting` to `in_progress` (`start_claim`), then to `decided`, or to `awaiting_sign_off` for an approval over $1,000. A decided claim is final. Only a waiting claim can be started, so two agents never work the same claim.
+- `fail_claim` records what went wrong on a claim in progress as an `error` step. The claim goes back to `waiting` the first time and to `left_for_handler` the second, and its `failures` count goes up. A claim with a decision can't fail, so no claim is decided or paid twice.
 - An approval needs a payout above zero. A decline or a referral has a payout of zero.
 - `pay_claim` pays only an approved, unpaid claim, and only for the exact payout. Over $1,000 it refuses with a 403 until a handler signs off, whatever the agent does.
 - `sign_off_claim` records a handler's sign-off and pays the claim.
@@ -48,7 +50,15 @@ The documents (`backend/documents.py`): `list_sections` and `read_section` serve
 
 ### `agent/`
 
-The UnderCover Agent: LangChain's `create_agent` on OpenRouter. Its tools are `get_claim`, `get_policy`, `get_customer`, `list_sections`, `read_section`, `decide_claim` and `pay_claim`, and each calls the backend's API and returns its reply, refusals included. `run(claim_id, thread_id)` starts the claim, uses its instructions (`backend/instructions/claim.md`, fetched through the API) as the system prompt, and posts each tool call, tool result and reply to the backend as a step while it works. It looks up the sections of the wording and the manual it needs. `agent/__main__.py` is the `uv run -m agent` command.
+The UnderCover Agent: LangChain's `create_agent` on OpenRouter. `agent/main.py` holds what the agents share: the backend client, the model and the model retries.
+
+The claim agent (`agent/claim_agent.py`) works one claim. Its tools are `get_claim`, `get_policy`, `get_customer`, `list_sections`, `read_section`, `decide_claim` and `pay_claim`, and each calls the backend's API and returns its reply, refusals included. Its system prompt is its instructions (`backend/instructions/claim.md`, fetched through the API), and it looks up the sections of the wording and the manual it needs.
+
+- `try_claim(claim_id)` starts the claim and runs a new claim agent on a new thread, which posts each tool call, tool result and reply to the backend as a step. Then it returns one line built from the claim's record, not from the model's reply.
+- Its middleware retries a model call that fails, such as a provider error or a 120-second timeout, up to 3 times. It retries a backend call that can't connect or times out up to 2 times, and stops a claim agent after 30 model calls.
+- If the claim agent still raises an error, or finishes without recording a decision, `try_claim` calls `fail_claim` and says so in its line. One bad claim never stops the run.
+
+`agent/__main__.py` is the `uv run -m agent` command.
 
 The instructions are written from the policy wording and the claims manual alone. They follow the manual's order of work, name the sections every claim needs, and tell the agent to work its decision out in full, including the payout, before it calls `decide_claim`.
 
@@ -56,15 +66,15 @@ The instructions are written from the policy wording and the claims manual alone
 
 React, Vite and React Router in UnderCover's brand (`dashboard/src/styles.css`), following the system's light or dark mode.
 
-- The queue (`/`): a count for each status, which you can click to filter, and the claims with their status, decision and payout. It refreshes every 2 seconds.
-- A claim (`/claims/:claimId`): the agent's decision with its reason and policy section; the payment, or the held payment and a sign-off form; what the agent read, such as "Claims manual, 7. Interpretation notes"; the agent's steps as they arrive, in plain words, such as "Read the claims manual, section 7"; the claim in full; the policy; and the customer's earlier claims. It refreshes every 2 seconds.
+- The queue (`/`): a count for each status (Waiting, In progress, Waiting for sign-off, Decided and Left for a handler, in Bright red), which you can click to filter, and the claims with their status, decision and payout. It refreshes every 2 seconds.
+- A claim (`/claims/:claimId`): the agent's decision with its reason and policy section; the payment, or the held payment and a sign-off form; what the agent read, such as "Claims manual, 7. Interpretation notes"; the agent's steps as they arrive, in plain words, such as "Read the claims manual, section 7", and any failure as "Failed: …"; the claim in full; the policy; and the customer's earlier claims. It refreshes every 2 seconds.
 - The instructions (`/instructions`): the agent's instructions, read only, exactly as the agent reads them.
 
 `api.ts` tags each API path with its response type.
 
 ### `e2e/`
 
-Playwright tests of the queue, the instructions, a claim in full, the agent's steps arriving and a handler's sign-off. They drive the API the way the agent does and never run a model.
+Playwright tests of the queue, the instructions, a claim in full, the agent's steps arriving, what the agent read, a claim left for a handler and a handler's sign-off. They drive the API the way the agent does and never run a model.
 
 ### Other
 
@@ -80,3 +90,5 @@ Playwright tests of the queue, the instructions, a claim in full, the agent's st
 - The pilot doesn't yet measure the agent's accuracy against the handlers' decisions.
 - The instructions now tell the agent to work its decision out in full before it calls `decide_claim`, the fix for CLM-1013.
 - On GLM 5.3 Flash, CLM-1020 (sunglasses taken by a monkey) was approved for $240.00 and paid. The agent read the contents of both documents, then sections 1 and 5 of the wording and sections 5, 6 and 7 of the manual. Its reason treats the loss as caused by a wild animal, not as theft, as the manual's note says. It skipped some of the sections the instructions say every claim needs (sections 9 to 11 of the wording and sections 2 and 9 of the manual).
+- Two sample calls with the agent's model settings were served on GLM 5.3 Flash by InferenceNet and Reka, not Wafer, with 67 and 0 reasoning tokens. OpenRouter's generation API reports the provider for each call.
+- CLM-1001 through `try_claim` on GLM 5.3 Flash: "CLM-1001: approve $420.00, paid", which matches the record.

@@ -51,7 +51,8 @@ def seed(path: Path) -> dict[str, int]:
             ],
         )
         db.executemany(
-            "INSERT INTO claims VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')",
+            "INSERT INTO claims"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting', 0)",
             [
                 (
                     c["claim_id"],

@@ -12,7 +12,7 @@ test("the queue shows every claim", async ({ page }) => {
   const counts = page
     .getByRole("group", { name: "Claims by status" })
     .locator(".count-number");
-  await expect(counts).toHaveCount(4);
+  await expect(counts).toHaveCount(5);
   const total = (await counts.allTextContents()).reduce(
     (sum, count) => sum + Number(count),
     0,
@@ -28,6 +28,32 @@ test("a claim opens from the queue", async ({ page }) => {
   await page.getByRole("link", { name: "CLM-1001" }).click();
   await expect(page).toHaveURL(/\/claims\/CLM-1001$/);
   await expect(page.getByRole("heading", { name: "CLM-1001" })).toBeVisible();
+});
+
+test("a claim that fails twice is left for a handler", async ({
+  page,
+  request,
+}) => {
+  for (const reason of ["The model provider timed out", "No decision"]) {
+    await request.post("/api/claims/CLM-1008/start");
+    const failed = await request.post("/api/claims/CLM-1008/failure", {
+      data: { thread_id: "e2e", reason },
+    });
+    expect(failed.ok()).toBe(true);
+  }
+  await page.goto("/");
+  await expect(page.getByRole("row", { name: /CLM-1008/ })).toContainText(
+    "Left for a handler",
+  );
+  await page.getByRole("link", { name: "CLM-1008" }).click();
+  const steps = page.getByRole("list", { name: "Steps" }).getByRole("listitem");
+  await expect(steps).toHaveText([
+    /Failed: The model provider timed out/,
+    /Failed: No decision/,
+  ]);
+  await expect(
+    page.getByRole("region", { name: "The agent's decision" }),
+  ).toContainText("left for a handler");
 });
 
 test("the queue shows a claim in progress without a reload", async ({

@@ -17,6 +17,7 @@ from backend.models import (
     ClaimSummary,
     Customer,
     DecisionInput,
+    FailureInput,
     Handler,
     Instructions,
     PaymentInput,
@@ -39,11 +40,13 @@ STATUS_TEXT: dict[Status, str] = {
     "in_progress": "in progress",
     "awaiting_sign_off": "waiting for sign-off",
     "decided": "decided",
+    "left_for_handler": "left for a handler",
 }
+TRIES = 2
 
 QUEUE_SQL = """
 SELECT c.claim_id, cu.name AS customer_name, c.claim_type, c.summary, c.submitted_on,
-       c.amount_claimed, c.status, d.decision, d.payout
+       c.amount_claimed, c.status, c.failures, d.decision, d.payout
 FROM claims c
 JOIN customers cu USING (customer_id)
 LEFT JOIN decisions d USING (claim_id)
@@ -200,7 +203,7 @@ def get_instructions() -> Instructions:
 @app.post("/api/claims/{claim_id}/start", operation_id="start_claim")
 def start_claim(claim_id: str, db: Db) -> Claim:
     """Mark a waiting claim as in progress while the agent works on it."""
-    require_status(load_claim(db, claim_id), "waiting", "in_progress")
+    require_status(load_claim(db, claim_id), "waiting")
     with db:
         db.execute(
             "UPDATE claims SET status = 'in_progress' WHERE claim_id = ?", (claim_id,)
@@ -208,17 +211,49 @@ def start_claim(claim_id: str, db: Db) -> Claim:
     return load_claim(db, claim_id)
 
 
+def insert_step(db: sqlite3.Connection, claim_id: str, step: StepInput) -> Step:
+    """Record one step on a claim, in the caller's transaction."""
+    row = db.execute(
+        "INSERT INTO steps (claim_id, thread_id, kind, name, content, created_at)"
+        " VALUES (?, ?, ?, ?, ?, ?) RETURNING *",
+        (claim_id, step.thread_id, step.kind, step.name, step.content, now()),
+    ).fetchone()
+    return Step.model_validate(dict(row))
+
+
+def record_failure(
+    db: sqlite3.Connection, claim: Claim, thread_id: str, reason: str
+) -> None:
+    """Send a failed claim back to the queue, or leave it for a handler."""
+    failures = claim.failures + 1
+    db.execute(
+        "UPDATE claims SET status = ?, failures = ? WHERE claim_id = ?",
+        (
+            "left_for_handler" if failures >= TRIES else "waiting",
+            failures,
+            claim.claim_id,
+        ),
+    )
+    step = StepInput(thread_id=thread_id, kind="error", name="", content=reason)
+    insert_step(db, claim.claim_id, step)
+
+
 @app.post("/api/claims/{claim_id}/steps", operation_id="add_step")
 def add_step(claim_id: str, step: StepInput, db: Db) -> Step:
     """Record one step the agent took on a claim."""
     found(db, "SELECT claim_id FROM claims WHERE claim_id = ?", claim_id, "Claim")
     with db:
-        row = db.execute(
-            "INSERT INTO steps (claim_id, thread_id, kind, name, content, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?) RETURNING *",
-            (claim_id, step.thread_id, step.kind, step.name, step.content, now()),
-        ).fetchone()
-    return Step.model_validate(dict(row))
+        return insert_step(db, claim_id, step)
+
+
+@app.post("/api/claims/{claim_id}/failure", operation_id="fail_claim")
+def fail_claim(claim_id: str, failure: FailureInput, db: Db) -> Claim:
+    """Record that the agent failed on a claim, which goes back in the queue."""
+    claim = load_claim(db, claim_id)
+    require_status(claim, "in_progress")
+    with db:
+        record_failure(db, claim, failure.thread_id, failure.reason)
+    return load_claim(db, claim_id)
 
 
 @app.get("/api/claims/{claim_id}/steps", operation_id="list_steps")

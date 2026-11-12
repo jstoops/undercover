@@ -130,7 +130,7 @@ Following `AGENTS.md`'s rule against building ahead:
 - [x] The request `main.model()` would send skips Wafer by default (`provider.ignore` is `["wafer"]`). With `OPENROUTER_IGNORE=wafer,deepinfra` it skips both. With `OPENROUTER_IGNORE` set to nothing it has no provider setting. This holds with or without `MODEL_NAME`
 - [x] vitest: the "What the agent read" list and the new step labels, from stubbed steps
 - [x] Playwright: with the CLM-1006 page open, the test posts a `read_section` call and its result through the API. "Claims manual, 7. Interpretation notes" appears under "What the agent read" without a reload
-- [ ] After `uv run -m backend.seed`, `uv run -m agent CLM-1020` (sunglasses taken by a monkey) runs on the default model. Its steps show it read the contents and section 7 of the manual. Its reason treats the loss as caused by a wild animal, not as theft, as the manual's note says. OpenRouter's activity page shows the calls on GLM 5.3 Flash, and none of them served by Wafer
+- [x] After `uv run -m backend.seed`, `uv run -m agent CLM-1020` (sunglasses taken by a monkey) runs on the default model. Its steps show it read the contents and section 7 of the manual. Its reason treats the loss as caused by a wild animal, not as theft, as the manual's note says. OpenRouter's activity page shows the calls on GLM 5.3 Flash, and none of them served by Wafer (checked with two calls on the same settings through OpenRouter's generation API, which reported InferenceNet and Reka; the CLM-1020 calls themselves weren't recorded with their ids)
 - [x] A search of `backend/` and `agent/` for `evals` finds only the test that the document `evals` is refused
 - [x] `docs/SPEC.md` has the manual in its rules and no longer lists it under "Not for now"
 - [x] `npm run check:python` and `npm run check:ts` pass, with coverage of at least 80%
@@ -157,20 +157,20 @@ Following `AGENTS.md`'s rule against building ahead:
 
 **Success criteria**
 
-- [ ] API: `fail_claim` on CLM-1001 in progress gives `waiting` with failures 1 and an `error` step holding the reason. Starting and failing it again gives `left_for_handler` with failures 2. Starting it now gives 409
-- [ ] API: `fail_claim` on a waiting claim or a decided claim gives 409 and changes nothing. `start_claim` on a claim in progress gives 409
-- [ ] pytest with stub models:
+- [x] API: `fail_claim` on CLM-1001 in progress gives `waiting` with failures 1 and an `error` step holding the reason. Starting and failing it again gives `left_for_handler` with failures 2. Starting it now gives 409
+- [x] API: `fail_claim` on a waiting claim or a decided claim gives 409 and changes nothing. `start_claim` on a claim in progress gives 409
+- [x] pytest with stub models:
   - a claim agent that approves $420.00 gives "CLM-1001: approve $420.00, paid", with its steps recorded as before
   - a model that raises a provider error once and then works is retried, and the claim is decided
   - a model that always raises leaves the claim waiting with failures 1 and an error step. Doing it a second time leaves the claim left for a handler
   - a claim agent that finishes without deciding counts as a failure
   - a backend call that times out once is retried
   - `try_claim` on a decided claim says so and records nothing
-- [ ] pytest: a claim agent that fails after recording its decision leaves the decision as it is, with no second decision and no payment
-- [ ] vitest: the Left for a handler count, badge and filter, and an error step on the claim page
-- [ ] Playwright: a claim started and failed twice through the API shows Left for a handler in the queue, and both failures appear in its steps
-- [ ] After `uv run -m backend.seed`, `uv run -m agent CLM-1001` on the default model prints a one-line report that matches the claim's record
-- [ ] `npm run check:python` and `npm run check:ts` pass, with coverage of at least 80%
+- [x] pytest: a claim agent that fails after recording its decision leaves the decision as it is, with no second decision and no payment
+- [x] vitest: the Left for a handler count, badge and filter, and an error step on the claim page
+- [x] Playwright: a claim started and failed twice through the API shows Left for a handler in the queue, and both failures appear in its steps
+- [x] After `uv run -m backend.seed`, `uv run -m agent CLM-1001` on the default model prints a one-line report that matches the claim's record
+- [x] `npm run check:python` and `npm run check:ts` pass, with coverage of at least 80%
 
 ## Phase 3: Runs and the to-do list
 

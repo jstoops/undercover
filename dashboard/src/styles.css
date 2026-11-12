@@ -33,6 +33,9 @@
   --decided: var(--very-dark-grayish-blue);
   --decided-bg: #e0e1e2;
   --decided-ink: #343a40;
+  --handler: var(--bright-red);
+  --handler-bg: #fbe5e7;
+  --handler-ink: #a71d2a;
 
   --font-body: "Saira Extra Condensed", system-ui, sans-serif;
   --font-accent: "Roboto", system-ui, sans-serif;
@@ -63,6 +66,8 @@
     --decided: #ced4da;
     --decided-bg: #495057;
     --decided-ink: #e9ecef;
+    --handler-bg: #3b0d12;
+    --handler-ink: #f3a3ab;
   }
 }
 
@@ -355,6 +360,12 @@ td .mono {
   --badge-dot: var(--decided);
   --badge-bg: var(--decided-bg);
   --badge-ink: var(--decided-ink);
+}
+
+.status-left_for_handler {
+  --badge-dot: var(--handler);
+  --badge-bg: var(--handler-bg);
+  --badge-ink: var(--handler-ink);
 }
 
 .decision-approve {
@@ -716,6 +727,12 @@ tfoot th {
 
 .step-label {
   color: var(--ink-strong);
+  font-weight: 600;
+}
+
+.step-error {
+  margin: 0;
+  color: var(--alert-ink);
   font-weight: 600;
 }
 

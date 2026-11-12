@@ -88,6 +88,36 @@ it("says when the agent is working", async () => {
   ).toBeDefined();
 });
 
+it("says when a claim is left for a handler, and what went wrong", async () => {
+  const failure = {
+    step_id: 1,
+    claim_id: "CLM-1001",
+    thread_id: "thread-1",
+    kind: "error",
+    name: "",
+    content: "RuntimeError: The model provider is busy",
+    created_at: "2026-11-09T22:36:00+00:00",
+  };
+  stubApi({
+    ...records,
+    "GET /api/claims/CLM-1001": {
+      ...claim,
+      status: "left_for_handler",
+      failures: 2,
+    },
+    "GET /api/claims/CLM-1001/steps": [failure, { ...failure, step_id: 2 }],
+  });
+  renderAt("/claims/CLM-1001");
+  expect(
+    await screen.findByText(
+      /failed on this claim twice, so it's left for a handler/,
+    ),
+  ).toBeDefined();
+  expect(
+    screen.getAllByText("Failed: RuntimeError: The model provider is busy"),
+  ).toHaveLength(2);
+});
+
 it("shows the decision and the payment", async () => {
   stubApi({
     ...records,

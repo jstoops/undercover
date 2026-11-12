@@ -1,13 +1,18 @@
 export type Status =
-  "waiting" | "in_progress" | "awaiting_sign_off" | "decided";
+  | "waiting"
+  | "in_progress"
+  | "awaiting_sign_off"
+  | "decided"
+  | "left_for_handler";
 export type DecisionKind = "approve" | "decline" | "refer";
-export type StepKind = "tool_call" | "tool_result" | "reply";
+export type StepKind = "tool_call" | "tool_result" | "reply" | "error";
 
 export const STATUSES: Status[] = [
   "waiting",
   "in_progress",
   "awaiting_sign_off",
   "decided",
+  "left_for_handler",
 ];
 
 export const STATUS_LABELS: Record<Status, string> = {
@@ -15,6 +20,7 @@ export const STATUS_LABELS: Record<Status, string> = {
   in_progress: "In progress",
   awaiting_sign_off: "Waiting for sign-off",
   decided: "Decided",
+  left_for_handler: "Left for a handler",
 };
 
 export const DECISION_LABELS: Record<DecisionKind, string> = {
@@ -31,6 +37,7 @@ export interface ClaimSummary {
   submitted_on: string;
   amount_claimed: number;
   status: Status;
+  failures: number;
   decision: DecisionKind | null;
   payout: number | null;
 }
@@ -81,6 +88,7 @@ export interface Claim {
   amount_claimed: number;
   documents: ClaimDocument[];
   status: Status;
+  failures: number;
   decision: Decision | null;
   sign_off: SignOff | null;
   payment: Payment | null;

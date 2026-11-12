@@ -4,9 +4,11 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 
-Status = Literal["waiting", "in_progress", "awaiting_sign_off", "decided"]
+Status = Literal[
+    "waiting", "in_progress", "awaiting_sign_off", "decided", "left_for_handler"
+]
 DecisionKind = Literal["approve", "decline", "refer"]
-StepKind = Literal["tool_call", "tool_result", "reply"]
+StepKind = Literal["tool_call", "tool_result", "reply", "error"]
 
 
 class DecisionInput(BaseModel):
@@ -30,6 +32,11 @@ class PaymentInput(BaseModel):
 
 class SignOffInput(BaseModel):
     handler_id: str
+
+
+class FailureInput(BaseModel):
+    thread_id: str
+    reason: str = Field(min_length=1)
 
 
 class StepInput(BaseModel):
@@ -88,6 +95,7 @@ class ClaimSummary(BaseModel):
     submitted_on: str
     amount_claimed: float
     status: Status
+    failures: int
     decision: DecisionKind | None
     payout: float | None
 
@@ -107,6 +115,7 @@ class Claim(BaseModel):
     amount_claimed: float
     documents: list[Document]
     status: Status
+    failures: int
     decision: Decision | None
     sign_off: SignOff | None
     payment: Payment | None

@@ -40,12 +40,16 @@ function StepItem({ step }: Readonly<{ step: Step }>) {
   return (
     <li className={`step step-${step.kind}`}>
       <span className="step-time mono">{time(step.created_at)}</span>
-      {step.kind === "reply" ? (
+      {step.kind === "reply" && (
         <div>
           <span className="step-label">The agent said</span>
           <p className="step-reply">{step.content}</p>
         </div>
-      ) : (
+      )}
+      {step.kind === "error" && (
+        <p className="step-error">Failed: {step.content}</p>
+      )}
+      {(step.kind === "tool_call" || step.kind === "tool_result") && (
         <details>
           <summary className={refused ? "step-refused" : undefined}>
             {step.kind === "tool_call" && label}

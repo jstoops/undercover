@@ -50,7 +50,8 @@ CREATE TABLE claims (
     items TEXT NOT NULL,
     amount_claimed REAL NOT NULL,
     documents TEXT NOT NULL,
-    status TEXT NOT NULL
+    status TEXT NOT NULL,
+    failures INTEGER NOT NULL
 );
 
 CREATE TABLE handlers (

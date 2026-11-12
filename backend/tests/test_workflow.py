@@ -50,7 +50,57 @@ def test_start_claim(client):
     response = start(client, "CLM-1001")
     assert response.status_code == 200
     assert response.json()["status"] == "in_progress"
-    assert start(client, "CLM-1001").status_code == 200
+    again = start(client, "CLM-1001")
+    assert again.status_code == 409
+    assert again.json()["detail"] == "Claim CLM-1001 is in progress"
+
+
+def fail(client, claim_id, reason="The model provider timed out"):
+    return client.post(
+        f"/api/claims/{claim_id}/failure",
+        json={"thread_id": "t1", "reason": reason},
+    )
+
+
+def test_a_failed_claim_goes_back_in_the_queue_once(client):
+    start(client, "CLM-1001")
+    first = fail(client, "CLM-1001")
+    assert first.status_code == 200
+    assert first.json()["status"] == "waiting"
+    assert first.json()["failures"] == 1
+    start(client, "CLM-1001")
+    second = fail(client, "CLM-1001", "The agent finished without a decision")
+    assert second.json()["status"] == "left_for_handler"
+    assert second.json()["failures"] == 2
+    refused = start(client, "CLM-1001")
+    assert refused.status_code == 409
+    assert refused.json()["detail"] == "Claim CLM-1001 is left for a handler"
+    errors = [
+        (s["kind"], s["thread_id"], s["content"])
+        for s in client.get("/api/claims/CLM-1001/steps").json()
+    ]
+    assert errors == [
+        ("error", "t1", "The model provider timed out"),
+        ("error", "t1", "The agent finished without a decision"),
+    ]
+    queue = {c["claim_id"]: c for c in client.get("/api/claims").json()}
+    assert queue["CLM-1001"]["status"] == "left_for_handler"
+    assert queue["CLM-1001"]["failures"] == 2
+
+
+def test_only_a_claim_in_progress_can_fail(client):
+    assert fail(client, "CLM-1001").status_code == 409
+    approved(client, "CLM-1002", 420)
+    pay(client, "CLM-1002", 420)
+    assert fail(client, "CLM-1002").status_code == 409
+    claim = client.get("/api/claims/CLM-1002").json()
+    assert claim["status"] == "decided"
+    assert claim["failures"] == 0
+    assert claim["payment"]["amount"] == 420
+    assert client.get("/api/claims/CLM-1002/steps").json() == []
+    assert fail(client, "CLM-9999").status_code == 404
+    start(client, "CLM-1003")
+    assert fail(client, "CLM-1003", "").status_code == 422
 
 
 def test_a_decided_claim_is_final(client):
