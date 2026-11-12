@@ -11,7 +11,6 @@ DecisionKind = Literal["approve", "decline", "refer"]
 StepKind = Literal["tool_call", "tool_result", "reply", "error"]
 RunStatus = Literal["running", "finished", "stopped"]
 TodoStatus = Literal["pending", "in_progress", "completed"]
-ShownTodoStatus = Literal["to_do", "in_progress", "done", "left_for_handler"]
 
 
 class DecisionInput(BaseModel):
@@ -189,7 +188,7 @@ class FinishInput(BaseModel):
 class Todo(BaseModel):
     position: int
     content: str
-    status: ShownTodoStatus
+    status: TodoStatus
 
 
 class Run(BaseModel):

@@ -151,7 +151,7 @@ export interface Instructions {
 }
 
 export type RunStatus = "running" | "finished" | "stopped";
-export type TodoStatus = "to_do" | "in_progress" | "done" | "left_for_handler";
+export type TodoStatus = "pending" | "in_progress" | "completed";
 
 export interface Todo {
   position: number;

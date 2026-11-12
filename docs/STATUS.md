@@ -50,7 +50,7 @@ The rules the backend enforces:
 - `pay_claim` pays only an approved, unpaid claim, and only for the exact payout. Over $1,000 it refuses with a 403 until a handler signs off, whatever the agent does.
 - `sign_off_claim` records a handler's sign-off and pays the claim.
 - A run has a cap, a status (`running`, `finished` or `stopped`), its times, its to-do list and a summary. `start_run` marks any earlier run that is still running as stopped, and fails every claim left in progress with "The run stopped before this claim was decided". `save_todos` and `finish_run` work only on a running run.
-- `save_todos` takes the queue agent's to-do list with its statuses: `pending`, `in_progress` or `completed`. `get_current_run` shows each item as `to_do`, `in_progress`, `done` or `left_for_handler`. A completed item is left for a handler when the claim named in it (such as "CLM-1004: …") was referred or failed twice, and done otherwise, including for an approval waiting for sign-off.
+- `save_todos` stores the queue agent's to-do list as it now stands, with each item's status: `pending`, `in_progress` or `completed`. `get_current_run` returns it as stored. The list shows only the agent's progress; where each claim stands (decided, waiting for sign-off or left for a handler) is the claim's own status in the queue.
 
 The documents (`backend/documents.py`): `list_sections` and `read_section` serve the policy wording (`policy-wording`) and the claims manual (`claims-manual`) by their numbered `## N. Title` sections. A section's topics are the bold lead-ins of its paragraphs and list items, such as "Wild animals" in section 7 of the manual. The whole wording is no longer served.
 
@@ -80,7 +80,7 @@ Both sets of instructions are written from the policy wording and the claims man
 
 React, Vite and React Router in UnderCover's brand (`dashboard/src/styles.css`), following the system's light or dark mode.
 
-- The queue (`/`): the current run, with its status, cap, to-do list (To do, In progress, Done or Left for a handler) and summary; a count for each status (Waiting, In progress, Waiting for sign-off, Decided and Left for a handler, in Bright red), which you can click to filter, and the claims with their status, decision and payout. It refreshes every 2 seconds.
+- The queue (`/`): the current run, with its status, cap, to-do list (To do, In progress or Done) and summary; a count for each status (Waiting, In progress, Waiting for sign-off, Decided and Left for a handler, in Bright red), which you can click to filter, and the claims with their status, decision and payout. It refreshes every 2 seconds.
 - A claim (`/claims/:claimId`): the agent's decision with its reason and policy section; the payment, or the held payment and a sign-off form; what the agent read, such as "Claims manual, 7. Interpretation notes"; the agent's steps as they arrive, in plain words, such as "Read the claims manual, section 7", and any failure as "Failed: …"; the claim in full; the policy; and the customer's earlier claims. It refreshes every 2 seconds.
 - The instructions (`/instructions`): the queue agent's ("Running the queue") and the claim agent's ("Working a claim"), read only, exactly as the agents read them.
 

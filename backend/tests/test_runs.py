@@ -54,7 +54,7 @@ def test_save_the_todo_list(client):
     run_id = start_run(client).json()["run_id"]
     items = ["CLM-1001: flight canceled", "CLM-1002: bag lost", "Write the summary"]
     saved = save(client, run_id, *[(item, "pending") for item in items])
-    assert [todo["status"] for todo in saved.json()["todos"]] == ["to_do"] * 3
+    assert [todo["status"] for todo in saved.json()["todos"]] == ["pending"] * 3
     ticked = save(
         client,
         run_id,
@@ -64,8 +64,8 @@ def test_save_the_todo_list(client):
     ).json()
     assert shown(ticked) == [
         (1, items[0], "in_progress"),
-        (2, items[1], "done"),
-        (3, items[2], "to_do"),
+        (2, items[1], "completed"),
+        (3, items[2], "pending"),
     ]
     assert client.get("/api/runs/current").json() == ticked
 
@@ -83,9 +83,8 @@ def test_input_checks(client, path, body):
     assert method(path, json=body).status_code == 422
 
 
-def test_a_completed_item_shows_how_its_claim_ended(client):
+def test_a_completed_item_stays_completed_however_its_claim_ended(client):
     run_id = start_run(client).json()["run_id"]
-    decide(client, "CLM-1001", "approve", 420)
     decide(client, "CLM-1003", "approve", 3750)
     decide(client, "CLM-1004", "refer", 0)
     for _ in range(2):
@@ -93,17 +92,9 @@ def test_a_completed_item_shows_how_its_claim_ended(client):
         client.post(
             "/api/claims/CLM-1005/failure", json={"thread_id": "t", "reason": "Boom"}
         )
-    items = ["CLM-1001", "CLM-1003", "CLM-1004", "CLM-1005", "Write the summary"]
+    items = ["CLM-1003: wrist", "CLM-1004: bag late", "CLM-1005: passport"]
     run = save(client, run_id, *[(item, "completed") for item in items]).json()
-    assert [todo["status"] for todo in run["todos"]] == [
-        "done",
-        "done",
-        "left_for_handler",
-        "left_for_handler",
-        "done",
-    ]
-    pending = save(client, run_id, ("CLM-1004", "pending")).json()
-    assert pending["todos"][0]["status"] == "to_do"
+    assert [todo["status"] for todo in run["todos"]] == ["completed"] * 3
 
 
 def test_finish_a_run(client):

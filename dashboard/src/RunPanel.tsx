@@ -9,10 +9,9 @@ const RUN_LABELS: Record<RunStatus, string> = {
 };
 
 const TODO_LABELS: Record<TodoStatus, string> = {
-  to_do: "To do",
+  pending: "To do",
   in_progress: "In progress",
-  done: "Done",
-  left_for_handler: "Left for a handler",
+  completed: "Done",
 };
 
 function RunDetails({ run }: Readonly<{ run: Run }>) {

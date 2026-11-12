@@ -67,8 +67,8 @@ def test_the_todo_list_is_saved_and_shown(backend, claims, monkeypatch):
     assert run["status"] == "finished"
     assert run["summary"] == summary
     assert [(t["content"], t["status"]) for t in run["todos"]] == [
-        ("CLM-1001: flight", "done"),
-        ("Summary", "done"),
+        ("CLM-1001: flight", "completed"),
+        ("Summary", "completed"),
     ]
     system = model.seen[0][0]
     assert isinstance(system, SystemMessage)
@@ -160,10 +160,11 @@ def test_a_claim_that_fails_twice_is_left_for_a_handler(backend, claims, capsys)
     assert lines[2] == (
         "Claim CLM-1001 is left for a handler, so there is nothing to do"
     )
-    assert current_run(backend)["todos"][0]["status"] == "left_for_handler"
+    assert status(backend, "CLM-1001") == "left_for_handler"
+    assert current_run(backend)["todos"][0]["status"] == "completed"
 
 
-def test_a_referral_is_left_for_a_handler_and_a_sign_off_is_done(backend, claims):
+def test_the_todo_list_shows_progress_and_the_queue_shows_outcomes(backend, claims):
     claims.update({"CLM-1001": [("refer", 0)], "CLM-1003": [("approve", 3750)]})
     model = script(
         *work("CLM-1001", "CLM-1003"),
@@ -173,9 +174,10 @@ def test_a_referral_is_left_for_a_handler_and_a_sign_off_is_done(backend, claims
         AIMessage(content="Done."),
     )
     queue_agent.run_queue(2, model)
+    assert status(backend, "CLM-1001") == "decided"
     assert status(backend, "CLM-1003") == "awaiting_sign_off"
     shown = [todo["status"] for todo in current_run(backend)["todos"]]
-    assert shown == ["left_for_handler", "done"]
+    assert shown == ["completed", "completed"]
 
 
 def test_the_check_for_missed_claims(backend, claims):

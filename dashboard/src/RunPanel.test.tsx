@@ -19,10 +19,10 @@ const run: Run = {
   finished_at: null,
   summary: null,
   todos: [
-    { position: 1, content: "CLM-1020: sunglasses", status: "done" },
-    { position: 2, content: "CLM-1015: flew home", status: "left_for_handler" },
+    { position: 1, content: "CLM-1020: sunglasses", status: "completed" },
+    { position: 2, content: "CLM-1015: flew home", status: "completed" },
     { position: 3, content: "CLM-1007: phone", status: "in_progress" },
-    { position: 4, content: "Write the summary", status: "to_do" },
+    { position: 4, content: "Write the summary", status: "pending" },
   ],
 };
 
@@ -54,7 +54,7 @@ it("shows the run's to-do list as the agent works", async () => {
     .map((item) => item.textContent);
   expect(items).toEqual([
     "DoneCLM-1020: sunglasses",
-    "Left for a handlerCLM-1015: flew home",
+    "DoneCLM-1015: flew home",
     "In progressCLM-1007: phone",
     "To doWrite the summary",
   ]);

@@ -57,9 +57,12 @@ test("the queue page shows the run's to-do list as it fills in", async ({
   await save("completed", "completed", "in_progress");
   await expect(todos).toHaveText([
     /Done.*CLM-1016/,
-    /Left for a handler.*CLM-1015/,
+    /Done.*CLM-1015/,
     /In progress.*Write the summary/,
   ]);
+  const referred = page.getByRole("row", { name: /CLM-1015/ });
+  await expect(referred).toContainText("Decided");
+  await expect(referred).toContainText("Refer");
 
   await request.post(`/api/runs/${String(runId)}/finish`, {
     data: { outcome: "finished", summary: "Worked 2 claims: 1 approved." },

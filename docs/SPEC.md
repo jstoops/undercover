@@ -29,7 +29,7 @@ The agent organizes its own work:
 ## What the team needs to see
 
 - The queue, with where each claim stands: waiting, in progress, waiting for sign-off, decided or left for a handler.
-- The current run's to-do list, with each item to do, in progress, done or left for a handler, and its summary. A referred claim, and one that failed twice, is left for a handler.
+- The current run's to-do list, with each item to do, in progress or done, and its summary. An item is done once the agent has finished with its claim. The queue shows where the claim stands, such as waiting for sign-off or left for a handler.
 - Each claim in full, with the agent's decision and its reasons.
 - What the agent is doing on a claim while it works, step by step, and the sections of the wording and the manual it read.
 - The agent's instructions for running the queue and for working a claim, read only.

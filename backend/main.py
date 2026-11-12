@@ -1,7 +1,6 @@
 """The UnderCover backend."""
 
 import json
-import re
 import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -28,12 +27,10 @@ from backend.models import (
     RunInput,
     Section,
     SectionSummary,
-    ShownTodoStatus,
     SignOffInput,
     Status,
     Step,
     StepInput,
-    Todo,
     TodosInput,
 )
 from backend.seed import seed
@@ -50,12 +47,6 @@ STATUS_TEXT: dict[Status, str] = {
     "left_for_handler": "left for a handler",
 }
 TRIES = 2
-CLAIM_ID = re.compile(r"CLM-\d+")
-SHOWN: dict[str, ShownTodoStatus] = {
-    "pending": "to_do",
-    "in_progress": "in_progress",
-    "completed": "done",
-}
 
 QUEUE_SQL = """
 SELECT c.claim_id, cu.name AS customer_name, c.claim_type, c.summary, c.submitted_on,
@@ -366,43 +357,17 @@ def sign_off_claim(claim_id: str, sign_off: SignOffInput, db: Db) -> Claim:
     return load_claim(db, claim_id)
 
 
-def shown_status(db: sqlite3.Connection, content: str, status: str) -> ShownTodoStatus:
-    """Show a completed item for a referred or failed claim as left for a handler."""
-    claim_id = CLAIM_ID.search(content)
-    if status != "completed" or claim_id is None:
-        return SHOWN[status]
-    row = one(
-        db,
-        "SELECT c.status, d.decision FROM claims c"
-        " LEFT JOIN decisions d USING (claim_id) WHERE c.claim_id = ?",
-        claim_id.group(),
-    )
-    if row and (row["status"] == "left_for_handler" or row["decision"] == "refer"):
-        return "left_for_handler"
-    return "done"
-
-
 def load_run(db: sqlite3.Connection, run_id: int) -> Run:
     """Read a run with its to-do list."""
     row = db.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,)).fetchone()
     if row is None:
         raise HTTPException(404, f"Run {run_id} not found")
     todos = db.execute(
-        "SELECT * FROM todos WHERE run_id = ? ORDER BY position", (run_id,)
+        "SELECT position, content, status FROM todos WHERE run_id = ?"
+        " ORDER BY position",
+        (run_id,),
     )
-    return Run.model_validate(
-        {
-            **dict(row),
-            "todos": [
-                Todo(
-                    position=todo["position"],
-                    content=todo["content"],
-                    status=shown_status(db, todo["content"], todo["status"]),
-                )
-                for todo in todos.fetchall()
-            ],
-        }
-    )
+    return Run.model_validate({**dict(row), "todos": [dict(t) for t in todos]})
 
 
 def running(db: sqlite3.Connection, run_id: int) -> Run:
